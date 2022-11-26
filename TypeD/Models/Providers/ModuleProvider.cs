@@ -37,33 +37,6 @@ namespace TypeD.Models.Providers
                 }).ToList());
             }
 
-#if DEBUG
-            var devModules = new List<ModuleList>(){
-                new ModuleList() { Name = "TypeOCore",    Versions = new List<ModuleProduct>() { new ModuleProduct() { Version = "local" } } },
-                new ModuleList() { Name = "TypeDCore",    Versions = new List<ModuleProduct>() { new ModuleProduct() { Version = "local", TypeD = true } } },
-                new ModuleList() { Name = "TypeOBasic2d", Versions = new List<ModuleProduct>() { new ModuleProduct() { Version = "local" } } },
-                new ModuleList() { Name = "TypeODesktop", Versions = new List<ModuleProduct>() { new ModuleProduct() { Version = "local" } } },
-                new ModuleList() { Name = "TypeOSDL",     Versions = new List<ModuleProduct>() { new ModuleProduct() { Version = "local" } } },
-                new ModuleList() { Name = "TypeDSDL",     Versions = new List<ModuleProduct>() { new ModuleProduct() { Version = "local", TypeD = true } } }
-            };
-            foreach (var module in devModules)
-            {
-                var existingModule = moduleList.Find(m => m.Name == module.Name);
-                if (existingModule == null)
-                {
-                    existingModule = new ModuleList() { Name = module.Name, Versions = new List<ModuleProduct>() };
-                    moduleList.Add(existingModule);
-                }
-                foreach(var moduleVersion in module.Versions)
-                {
-                    if (!existingModule.Versions.Exists(v => v == moduleVersion))
-                    {
-                        existingModule.Versions.Add(moduleVersion);
-                    }
-                }
-            }
-#endif
-
             foreach (var module in project.Modules)
             {
                 var existingModule = moduleList.Find(m => m.Name == module.Name);

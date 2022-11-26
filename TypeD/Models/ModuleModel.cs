@@ -36,43 +36,11 @@ namespace TypeD.Models
         // Functions
         public async Task<bool> Download(Module module, Action<long, int, long> progress)
         {
-#if DEBUG
-            if(module.Version == "local")
-            {
-                if (!Directory.Exists($"{module.ModulePath}"))
-                    Directory.CreateDirectory(module.ModulePath);
-
-                var current = Directory.GetCurrentDirectory();
-                var currentEditorPath = current.Replace("\\TypeDitor\\", $"\\{module.Name}\\");
-                var currentTypeOPath = currentEditorPath.Replace("\\net6.0-windows", "\\net6.0").Replace("\\Editor\\", "\\\\");
-                var productPath = $@"{currentEditorPath}\..\..\..\product";
-
-                var pathUsed = Directory.Exists(currentEditorPath) ? currentEditorPath : currentTypeOPath;
-
-                try
-                {
-                    progress(0, 0, 0);
-                    await Task.Delay(0);
-                    File.Copy(@$"{pathUsed}\{module.Name}.dll", $@"{module.ModulePath}\{module.Name}.dll", true);
-                    progress(0, 25, 0);
-                    //File.Copy(@$"{pathUsed}\{module.Name}.deps.json", $@"{module.ModulePath}\{module.Name}.deps.json", true);
-                    //progress(0, 50, 0);
-                    File.Copy(@$"{pathUsed}\{module.Name}.pdb", $@"{module.ModulePath}\{module.Name}.pdb", true);
-                    progress(0, 75, 0);
-                    if(File.Exists(productPath))
-                        File.Copy(@$"{productPath}", $@"{module.ModulePath}\product", true);
-                    progress(0, 100, 0);
-                }
-                catch { }
-                return true;
-            }
-#endif
-
             if (Directory.Exists($"{module.ModulePath}")) return false;
 
             Directory.CreateDirectory(module.ModulePath);
 
-            var zipName = $"{module.Name}-v{module.Version}.zip";
+            var zipName = $"{module.Name}-{module.Version}.zip";
             var moduleUrl = new Uri($"https://typedeaf.nyc3.cdn.digitaloceanspaces.com/typeo/releases/modules/{module.Name}/{module.Version}/{zipName}");
             var downloadZipPath = $"{module.ModulePath}/{zipName}";
 
