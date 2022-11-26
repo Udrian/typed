@@ -129,7 +129,7 @@ namespace TypeD.Models
             System.Reflection.TypeInfo moduleType = null;
             foreach (var type in module.Assembly.DefinedTypes)
             {
-                if (type.IsSubclassOf(typeof(TypeOEngine.Typedeaf.Core.Engine.Module)))
+                if (type?.BaseType?.FullName == "TypeOEngine.Typedeaf.Core.Engine.Module")
                 {
                     moduleType = type;
                     break;

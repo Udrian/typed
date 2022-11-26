@@ -11,7 +11,6 @@ using TypeD.Models.Data.SaveContexts;
 using TypeD.Models.Interfaces;
 using TypeD.Models.Providers.Interfaces;
 using TypeD.View.TreeNodes;
-using TypeOEngine.Typedeaf.Core;
 
 namespace TypeD.Models
 {
@@ -130,18 +129,6 @@ namespace TypeD.Models
             InitCode(project, code);
 
             SaveCode(code);
-        }
-
-        public void SetStartScene(Project project, Component scene)
-        {
-            if (scene.TypeOBaseType != typeof(Scene)) return;
-            project.StartScene = scene.FullName;
-
-            SaveModel.AddSave<ProjectSaveContext>(project);
-
-            var gameComponent = ComponentProvider.Load(project, $"{project.ProjectName}.{project.ProjectName}Game");
-
-            SaveCode(gameComponent.Template.Code);
         }
 
         public void BuildComponentTree(Project project)
