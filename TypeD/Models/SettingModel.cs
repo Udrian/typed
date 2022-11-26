@@ -89,11 +89,12 @@ namespace TypeD.Models
 
         public T GetContext<T>(SettingLevel settingLevel = SettingLevel.Local) where T : SettingContext, new()
         {
-            T retVal = Contexts[SettingLevel.System].First(c => c.GetType() == typeof(T)) as T;
+            T retVal = Contexts[SettingLevel.System].FirstOrDefault(c => c.GetType() == typeof(T)) as T;
+            if (retVal == null) return null;
 
             for(int i = 1; i <= (int)settingLevel; i++)
             {
-                retVal = retVal.Merge(Contexts[(SettingLevel)i].First(c => c.GetType() == typeof(T)) as T) as T;
+                retVal = retVal.Merge(Contexts[(SettingLevel)i].FirstOrDefault(c => c.GetType() == typeof(T)) as T) as T;
             }
 
             retVal.Level = settingLevel;

@@ -8,6 +8,7 @@ using TypeD.Code;
 using TypeD.Helpers;
 using TypeD.Models.Data;
 using TypeD.Models.Data.Hooks;
+using TypeD.Models.Data.SaveContexts;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
 using TypeD.Models.Providers.Interfaces;
@@ -77,6 +78,7 @@ namespace TypeD.Models.Providers
             progress(10);
 
             // Prepare
+            SaveModel.AddSave<ProjectSaveContext>(project);
             ProjectModel.InitAndSaveCode(project, new ProgramCode());
 
             var modulesToAdd = new List<string>() { "TypeOCore", "TypeDCore", "TypeODesktop", "TypeOBasic2d", "TypeOSDL", "TypeDSDL" };
@@ -126,6 +128,8 @@ namespace TypeD.Models.Providers
             progress(0);
             var projectData = JSON.Deserialize<ProjectDTO>(projectFilePath);
             var project = new Project(Path.GetDirectoryName(projectFilePath), projectData);
+
+            TypeDInit.ProjectLoad(project, ResourceModel);
 
             var downloadProgressStep = 99 / (project.Modules.Count == 0 ? 1 : project.Modules.Count);
             var downloadProgress = 0;
