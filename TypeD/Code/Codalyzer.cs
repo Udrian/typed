@@ -8,6 +8,9 @@ using TypeD.Models.Interfaces;
 
 namespace TypeD.Code
 {
+    /// <summary>
+    /// Baseclass for generating and managing .cs Code files
+    /// </summary>
     public abstract class Codalyzer
     {
         // Class Definitions
