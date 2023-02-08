@@ -36,6 +36,7 @@ namespace TypeD.Models
         // Functions
         public async Task<bool> Download(Module module, Action<long, int, long> progress)
         {
+            if (module.Version.EndsWith("local")) return false;
             if (Directory.Exists($"{module.ModulePath}")) return false;
 
             Directory.CreateDirectory(module.ModulePath);

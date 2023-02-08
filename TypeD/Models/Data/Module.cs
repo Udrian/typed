@@ -9,10 +9,11 @@ namespace TypeD.Models.Data
         // Data
         public string Name { get; set; }
         public string Version { get; set; }
+        public bool IsLocal { get { return Version.EndsWith(";local"); } }
 
         // Paths
-        internal string ModulePath { get { return Path.Combine(ModuleModel.ModuleCachePath, Name, Version); } }
-        internal string ModuleDLLPath { get { return Path.Combine(ModulePath, $"{Name}.dll"); } }
+        internal string ModulePath { get { return IsLocal ? Path.GetDirectoryName(Version.Replace(";local", "")) : Path.Combine(ModuleModel.ModuleCachePath, Name, Version); } }
+        internal string ModuleDLLPath { get { return IsLocal ? Version.Replace(";local", "") : Path.Combine(ModulePath, $"{Name}.dll"); } }
         internal string ProductPath { get { return Path.Combine(ModulePath, "product"); } }
 
         // Loaded data
