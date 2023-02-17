@@ -81,12 +81,12 @@ namespace TypeD.Models.Providers
             SaveModel.AddSave<ProjectSaveContext>(project);
             ProjectModel.InitAndSaveCode(project, new ProgramCode());
 
-            var modulesToAdd = new List<string>() { "TypeOCore", "TypeDCore", "TypeODesktop", "TypeOBasic2d", "TypeOSDL", "TypeDSDL" };
+            var modulesToAdd = new List<string>() { /*"TypeOCore", "TypeDCore", "TypeODesktop", "TypeOBasic2d", "TypeOSDL", "TypeDSDL"*/ };
             var moduleList = await ModuleProvider.List(project);
 
             progress(15);
 
-            var moduleAddProgressStep = 15 / modulesToAdd.Count == 0 ? 1 : modulesToAdd.Count;
+            var moduleAddProgressStep = 15 / (modulesToAdd.Count == 0 ? 1 : modulesToAdd.Count);
             var moduleAddProgress = 0;
             foreach(var moduleToAdd in modulesToAdd)
             {

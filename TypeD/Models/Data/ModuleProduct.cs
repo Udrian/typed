@@ -8,7 +8,7 @@ namespace TypeD.Models.Data
         public string Version { get; set; }
         public List<string> Externals { get; set; }
         public List<string> Dependencies { get; set; }
-        public bool TypeD { get; set; }
+        public string DevModuleName { get; set; }
 
         internal ModuleProduct()
         {
@@ -21,7 +21,7 @@ namespace TypeD.Models.Data
             Dependencies = dto.Dependencies;
             Externals = dto.Externals;
             Version = dto.Version;
-            TypeD = dto.Type == "TypeDModule";
+            DevModuleName = dto.DevModuleName;
         }
     }
 }

@@ -76,6 +76,10 @@ namespace TypeD.Models
 
             module.Assembly = System.Reflection.Assembly.LoadFrom(module.ModuleDLLPath);
             module.ModuleTypeInfo = GetModuleType(module);
+            if (module.HaveDevModule && File.Exists(module.ModuleDevDLLPath))
+            {
+                module.DevAssembly = System.Reflection.Assembly.LoadFrom(module.ModuleDevDLLPath);
+            }
             InitializeTypeD(project, module);
         }
 
@@ -103,9 +107,9 @@ namespace TypeD.Models
         // Internal functions
         private void InitializeTypeD(Project project, Module module)
         {
-            if (!module.IsTypeD) return;
+            if (!module.HaveDevModule) return;
 
-            var typeDInitType = module.Assembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
+            var typeDInitType = module.DevAssembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
             if (typeDInitType == null) return;
 
             module.TypeDModuleInitializer = Activator.CreateInstance(typeDInitType) as TypeDModuleInitializer;
@@ -116,9 +120,9 @@ namespace TypeD.Models
 
         private void UninitializeTypeD(Module module)
         {
-            if (!module.IsTypeD) return;
+            if (!module.HaveDevModule) return;
 
-            var typeDInitType = module.Assembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
+            var typeDInitType = module.DevAssembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
             if (typeDInitType == null) return;
 
             module.TypeDModuleInitializer.Uninitializer();

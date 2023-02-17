@@ -35,6 +35,7 @@ namespace TypeD.Models.Providers
                         }).ToList()
                     };
                 }).ToList());
+                moduleList.RemoveAll(m => m.Name == "TypeD");
             }
 
             foreach (var module in project.Modules)

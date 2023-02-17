@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Reflection;
 
 namespace TypeD.Code
 {
@@ -32,7 +33,7 @@ namespace TypeD.Code
                 foreach (var module in Project.Modules)
                 {
                     var moduleType = module.ModuleTypeInfo;
-                    if (moduleType == null || moduleType.Name == "TypeOCore" || module.IsTypeD) continue;
+                    if (moduleType == null || moduleType.Name == "TypeOCore" || module.Assembly == null) continue;
                     if (module.ModuleTypeInfo != null)
                         usings.Add(module.ModuleTypeInfo.Namespace);
                 }
@@ -46,7 +47,7 @@ namespace TypeD.Code
                 foreach (var module in Project.Modules)
                 {
                     var moduleType = module.ModuleTypeInfo;
-                    if (moduleType == null || moduleType.Name == "TypeOCore" || module.IsTypeD) continue;
+                    if (moduleType == null || moduleType.Name == "TypeOCore" || module.Assembly == null) continue;
                     Writer.AddLine($".LoadModule<{moduleType.Name}>()");
                 }
                 Writer.AddLine(".Start();", true);

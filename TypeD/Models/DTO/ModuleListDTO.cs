@@ -9,6 +9,8 @@ namespace TypeD.Models.DTO
         public List<string> Externals { get; set; }
         public List<string> Dependencies { get; set; }
         public string Type { get; set; }
+        public string DevModuleName { get; set; }
+        public string TestName { get; set; }
     }
 
     class ModuleListDTO
