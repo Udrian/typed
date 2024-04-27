@@ -158,10 +158,16 @@ namespace TypeD.Models.Providers
         public List<Component> ListAll(Project project)
         {
             var path = GetPath(project);
-            if (!Directory.Exists(path)) return new List<Component>();
-
-            var files = Directory.GetFiles(path, $"*.{ComponentFileEnding}", SearchOption.AllDirectories);
-            var components = files.Select((f) => { return LoadFromPath(project, f); }).ToList();
+            List<Component> components;
+            if (!Directory.Exists(path))
+            {
+                components = new List<Component>();
+            }
+            else
+            {
+                var files = Directory.GetFiles(path, $"*.{ComponentFileEnding}", SearchOption.AllDirectories);
+                components = files.Select((f) => { return LoadFromPath(project, f); }).ToList();
+            }
 
             var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
             
