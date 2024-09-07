@@ -59,13 +59,21 @@ namespace TypeD.Models.Data.SaveContexts
                 {
                     if (ComponentProvider.Exists(Project, deletedComponent))
                     {
-                        File.Delete(ComponentProvider.GetPath(Project, deletedComponent));
+                        var componentFile = ComponentProvider.GetPath(Project, deletedComponent);
+                        File.Delete(componentFile);
                         var csFile = Path.Combine(Project.Location, $"{deletedComponent.FullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
-                        var csTypeDFile = Path.Combine(Project.Location, $"{deletedComponent.FullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
+                        var csTypeDFile = Path.Combine(Project.ProjectComponentCodePath, $"{deletedComponent.FullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
                         if (File.Exists(csFile))
                             File.Delete(csFile);
                         if (File.Exists(csTypeDFile))
                             File.Delete(csTypeDFile);
+
+                        if(!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(componentFile)).Any())
+                            Directory.Delete(Path.GetDirectoryName(componentFile));
+                        if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(csFile)).Any())
+                            Directory.Delete(Path.GetDirectoryName(csFile));
+                        if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(csTypeDFile)).Any())
+                            Directory.Delete(Path.GetDirectoryName(csTypeDFile));
                     }
                 }
 
