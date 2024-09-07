@@ -83,9 +83,9 @@ namespace TypeD.Models.Data.SaveContexts
 
                     File.Delete(ComponentProvider.GetPath(Project, oldFullName));
                     var csFile = Path.Combine(Project.Location, $"{oldFullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
-                    var csTypeDFile = Path.Combine(Project.Location, $"{oldFullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
+                    var csTypeDFile = Path.Combine(Project.ProjectComponentCodePath, $"{oldFullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
                     var csFileNew = Path.Combine(Project.Location, $"{renamedComponent.Item2.FullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
-                    var csTypeDFileNew = Path.Combine(Project.Location, $"{renamedComponent.Item2.FullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
+                    var csTypeDFileNew = Path.Combine(Project.ProjectComponentCodePath, $"{renamedComponent.Item2.FullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
                     if (File.Exists(csFile))
                     {
                         File.Move(csFile, csFileNew);
