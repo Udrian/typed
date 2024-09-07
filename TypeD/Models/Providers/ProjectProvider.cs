@@ -187,7 +187,7 @@ namespace TypeD.Models.Providers
                 await CMD.Run(new string[]
                 {
                     $"cd \"{project.Location}\"",
-                    $"dotnet new console -lang \"C#\" -n \"{project.CSProjName}\"",
+                    $"dotnet new console --language \"C#\" --framework \"net7.0\" -n \"{project.CSProjName}\"",
                     $"dotnet sln \"{Path.GetFileName(project.CSSolutionPath)}\" add \"{project.CSProjName}\""
                 });
 
