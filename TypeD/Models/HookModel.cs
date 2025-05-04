@@ -95,9 +95,10 @@ namespace TypeD.Models
             }
         }
 
-        public void Shoot<T>(T hook) where T : Hook, new()
+        public T Shoot<T>(T hook) where T : Hook, new()
         {
             Shoot(GetName<T>(), hook);
+            return hook;
         }
 
         private string GetName<T>()

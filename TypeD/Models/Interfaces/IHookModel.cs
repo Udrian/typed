@@ -13,6 +13,6 @@ namespace TypeD.Models.Interfaces
         public void RemoveHook<T>() where T : Hook, new();
         public void RemoveHook<T>(Action<T> action) where T : Hook, new();
         public void Shoot(string hook, object param);
-        public void Shoot<T>(T hook) where T : Hook, new();
+        public T Shoot<T>(T hook) where T : Hook, new();
     }
 }
