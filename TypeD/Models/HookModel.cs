@@ -101,6 +101,11 @@ namespace TypeD.Models
             return hook;
         }
 
+        public T Shoot<T>() where T : Hook, new()
+        {
+            return Shoot(new T());
+        }
+
         private string GetName<T>()
         {
             var type = typeof(T);
