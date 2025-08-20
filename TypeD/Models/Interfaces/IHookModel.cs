@@ -8,7 +8,7 @@ namespace TypeD.Models.Interfaces
     /// actions associated with hooks.
     /// </summary>
     /// <remarks>This interface provides methods to add, remove, and trigger hooks, supporting both generic
-    /// and non-generic hooks.  Hooks are identified by a string key or a specific type derived from <see cref="Hook"]. 
+    /// and non-generic hooks.  Hooks are identified by a string key or a specific type derived from <see cref="Hook"/>. 
     /// Actions associated with hooks can be executed with optional parameters or strongly-typed hook
     /// instances.</remarks>
     public interface IHookModel : IModel
@@ -24,9 +24,9 @@ namespace TypeD.Models.Interfaces
         /// </summary>
         /// <remarks>Hooks provide a mechanism for extending functionality by associating custom actions
         /// with specific events or triggers.</remarks>
-        /// <param name="hook">The name of the hook to register. Cannot be null or empty.</param>
+        /// <param name="hook">The name of the hook to register. Cannot be <see langword="null"/> or empty.</param>
         /// <param name="action">The action to execute when the hook is triggered. The action receives an object parameter containing
-        /// hook-specific data. Cannot be null.</param>
+        /// hook-specific data. Cannot be <see langword="null"/>.</param>
         public void AddHook(string hook, Action<object> action);
         /// <summary>
         /// Registers a hook of the specified type and associated action to be executed when the hook is triggered.
@@ -41,15 +41,15 @@ namespace TypeD.Models.Interfaces
         /// </summary>
         /// <remarks>Use this method to unregister a hook that was previously added. If the specified hook
         /// does not exist,  the method performs no action.</remarks>
-        /// <param name="hook">The identifier of the hook to remove. Cannot be null or empty.</param>
+        /// <param name="hook">The identifier of the hook to remove. Cannot be <see langword="null"/> or empty.</param>
         public void RemoveHook(string hook);
         /// <summary>
         /// Removes a previously registered hook and its associated action.
         /// </summary>
         /// <remarks>Use this method to unregister a specific action from a hook. If the specified hook or
         /// action does not exist, the method has no effect.</remarks>
-        /// <param name="hook">The name of the hook to remove. This cannot be null or empty.</param>
-        /// <param name="action">The action associated with the hook to remove. This cannot be null.</param>
+        /// <param name="hook">The name of the hook to remove. This cannot be <see langword="null"/> or empty.</param>
+        /// <param name="action">The action associated with the hook to remove. This cannot be <see langword="null"/>.</param>
         public void RemoveHook(string hook, Action<object> action);
         /// <summary>
         /// Removes all previously registered hook of the specified type.
@@ -72,15 +72,15 @@ namespace TypeD.Models.Interfaces
         /// </summary>
         /// <remarks>The behavior of the method depends on the implementation of the specified hook.
         /// Ensure that the hook name is valid and recognized by the system.</remarks>
-        /// <param name="hook">The name of the hook to execute. Cannot be null or empty.</param>
-        /// <param name="param">An object containing the data or context to pass to the hook. Can be null if the hook does not require a
+        /// <param name="hook">The name of the hook to execute. Cannot be <see langword="null"/> or empty.</param>
+        /// <param name="param">An object containing the data or context to pass to the hook. Can be <see langword="null"/> if the hook does not require a
         /// parameter.</param>
         public void Shoot(string hook, object param);
         /// <summary>
         /// Executes the specified hook and returns the result.
         /// </summary>
         /// <typeparam name="T">The type of the hook to execute. Must inherit from <see cref="Hook"/> and have a parameterless constructor.</typeparam>
-        /// <param name="hook">The hook instance to execute. Cannot be null.</param>
+        /// <param name="hook">The hook instance to execute. Cannot be <see langword="null"/>.</param>
         /// <returns>The result of executing the specified hook.</returns>
         public T Shoot<T>(T hook) where T : Hook, new();
         /// <summary>
