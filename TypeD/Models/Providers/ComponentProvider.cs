@@ -33,31 +33,27 @@ namespace TypeD.Models.Providers
         }
 
         // Functions
-        public T Create<T>(Project project, string className, string @namespace, Component parentComponent = null, List<string> interfaces = null) where T : ComponentTemplate
+        public ComponentTemplate Create(Project project, string className, string @namespace, Component component, List<string> interfaces = null)
         {
-            Type componentTemplateType = typeof(T);
-
-            var component = TranslateComponentDTO(project, new ComponentDTO()
+            var componentdto = TranslateComponentDTO(project, new ComponentDTO()
             {
                 ClassName = className,
                 Interfaces = interfaces ?? new List<string>(),
                 Namespace = @namespace,
-                ParentComponent = parentComponent?.FullName ?? "",
-                TemplateClass = componentTemplateType.FullName
+                ParentComponent = component.FullName,
+                TemplateClass = component.Template.GetType().FullName
             });
-            component.ParentComponent = parentComponent;
+            componentdto.ParentComponent = component;
 
-            //TODO: Look over this onces more
-            var template = Activator.CreateInstance(componentTemplateType) as T;
-            template.CreateCode(component);
-            component.TypeOBaseType = template.Code.TypeOBaseType;
-            ProjectModel.InitAndSaveCode(project, template.Code);
-            template.Init();
+            component.Template.CreateCode(componentdto);
+            componentdto.TypeOBaseType = component.Template.Code.TypeOBaseType;
+            ProjectModel.InitAndSaveCode(project, component.Template.Code);
+            component.Template.Init();
 
-            Save(project, component);
+            Save(project, componentdto);
 
             ProjectModel.BuildComponentTree(project);
-            return template;
+            return component.Template;
         }
 
         public void Save(Project project, Component component)
