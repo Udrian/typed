@@ -25,7 +25,6 @@ namespace TypeD.Components
 
         // Constructors
         internal ComponentTemplate() { }
-        internal abstract void CreateCode(Component component);
 
         /// <summary>
         /// Initializes the instance, preparing it for use.
@@ -60,11 +59,14 @@ namespace TypeD.Components
         /// behavior.</remarks>
         public new T Code { get { return base.Code as T; } internal set { base.Code = value; } }
 
-        // functions
-        internal override void CreateCode(Component component)
+        /// <summary>
+        /// Initializes the component by generating the necessary code for its operation.
+        /// </summary>
+        /// <remarks>This method should be called to prepare the component for use. It ensures that the
+        /// required code is created based on the current state of the <see cref="Component"/> property.</remarks>
+        public override void Init()
         {
-            Component = component;
-            Code = Activator.CreateInstance(typeof(T), component) as T;
+            Code = Activator.CreateInstance(typeof(T), Component) as T;
         }
     }
 }
