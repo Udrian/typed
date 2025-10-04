@@ -20,11 +20,11 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="project">The project in which the component template will be created.</param>
         /// <param name="className">The name of the class to be generated for the component template.</param>
         /// <param name="namespace">The namespace to assign to the generated component class.</param>
-        /// <param name="component">The component details used to define the structure and behavior of the template.</param>
+        /// <param name="parentComponent">The component details used to define the structure and behavior of the template.</param>
         /// <param name="interfaces">An optional list of interface names that the generated component class will implement. Can be <see
         /// langword="null"/> if no interfaces are required.</param>
         /// <returns>A <see cref="ComponentTemplate"/> representing the newly created component template.</returns>
-        public ComponentTemplate Create(Project project, string className, string @namespace, Component component, List<string> interfaces = null);
+        public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null);
         /// <summary>
         /// Saves the specified component.
         /// </summary>
