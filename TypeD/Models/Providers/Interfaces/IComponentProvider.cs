@@ -25,6 +25,7 @@ namespace TypeD.Models.Providers.Interfaces
         /// langword="null"/> if no interfaces are required.</param>
         /// <returns>A <see cref="ComponentTemplate"/> representing the newly created component template.</returns>
         public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null);
+
         /// <summary>
         /// Saves the specified component.
         /// </summary>
@@ -33,6 +34,7 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="project">The current project context. Cannot be <see langword="null"/>.</param>
         /// <param name="component">The component associated with the project to be saved. Cannot be <see langword="null"/>.</param>
         public void Save(Project project, Component component);
+
         /// <summary>
         /// Loads a component from the specified project using its fully qualified name.
         /// </summary>
@@ -40,12 +42,14 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="fullName">The fully qualified name of the component to load. Cannot be <see langword="null"/> or empty.</param>
         /// <returns>The loaded <see cref="Component"/> instance if found; otherwise, <see langword="null"/>.</returns>
         public Component Load(Project project, string fullName);
+
         /// <summary>
         /// Deletes the specified component from the given project.
         /// </summary>
         /// <param name="project">The project from which the component will be deleted. Cannot be <see langword="null"/>.</param>
         /// <param name="component">The component to delete from the project. Cannot be <see langword="null"/>.</param>
         public void Delete(Project project, Component component);
+
         /// <summary>
         /// Renames the specified component within the given project to the provided class name.
         /// </summary>
@@ -53,6 +57,7 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="component">The component to rename. Must belong to the specified project.</param>
         /// <param name="newClassName">The new class name to assign to the component. Cannot be <see langword="null"/> or empty.</param>
         public void Rename(Project project, Component component, string newClassName);
+
         /// <summary>
         /// Determines whether the specified component exists within the given project.
         /// </summary>
@@ -60,6 +65,7 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="component">The component to check for existence. Cannot be <see langword="null"/>.</param>
         /// <returns><see langword="true"/> if the specified component exists within the project; otherwise, <see langword="false"/>.</returns>
         public bool Exists(Project project, Component component);
+
         /// <summary>
         /// Determines whether a project contains a component of the specified type.
         /// </summary>
@@ -67,6 +73,7 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="type">The type of the component to locate. Cannot be <see langword="null"/>.</param>
         /// <returns><see langword="true"/> if the project contains a component of the specified type; otherwise, <see langword="false"/>.</returns>
         public bool Exists(Project project, Type type);
+
         /// <summary>
         /// Retrieves a list of all components associated with the specified project.
         /// </summary>
@@ -74,6 +81,7 @@ namespace TypeD.Models.Providers.Interfaces
         /// <returns>A list of <see cref="Component"/> objects associated with the specified project. Returns an empty list if no
         /// components are found.</returns>
         public List<Component> ListAll(Project project);
+
         /// <summary>
         /// Retrieves the file system path associated with the specified project and component.
         /// </summary>
@@ -81,6 +89,7 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="component">The component within the project whose path is being retrieved. Cannot be <see langword="null"/>.</param>
         /// <returns>The file system path as a <see cref="string"/> that corresponds to the specified project and component.</returns>
         public string GetPath(Project project, Component component);
+
         /// <summary>
         /// Retrieves the file path of a specified item within a project.
         /// </summary>
@@ -88,5 +97,28 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="fullName">The full name of the item whose path is to be retrieved.</param>
         /// <returns>The file path of the specified item if found; otherwise, an empty string.</returns>
         public string GetPath(Project project, string fullName);
+
+        /// <summary>
+        /// Adds a base type component to the current collection.
+        /// </summary>
+        /// <remarks>This method adds the specified component to the collection. Ensure that the component
+        /// is not already part of the collection to avoid potential duplication issues.</remarks>
+        /// <param name="component">The component to add. This parameter cannot be <see langword="null"/>.</param>
+        public void AddBaseTypeComponent(Component component);
+
+        /// <summary>
+        /// Removes the specified component from the base type.
+        /// </summary>
+        /// <remarks>This method removes the provided component from the base type's collection of
+        /// components. Ensure that the component is part of the base type before calling this method.</remarks>
+        /// <param name="component">The component to remove. Must not be <see langword="null"/>.</param>
+        public void RemoveBaseTypeComponent(Component component);
+
+        /// <summary>
+        /// Retrieves a list of components that are associated with the base type.
+        /// </summary>
+        /// <returns>A list of <see cref="Component"/> objects representing the components of the base type. The list will be
+        /// empty if no components are associated with the base type.</returns>
+        public List<Component> GetBaseTypeComponents();
     }
 }

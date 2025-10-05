@@ -34,10 +34,6 @@ namespace TypeD.Models.DTO
         /// </summary>
         public List<string> Interfaces { get; set; }
         /// <summary>
-        /// Gets or sets the base type of the object represented by this <see cref="Component"/>.
-        /// </summary>
-        public string TypeOBaseType { get; set; }
-        /// <summary>
         /// Gets or sets the collection of child names associated with the <see cref="Component"/>.
         /// </summary>
         public List<string> Children { get; set; }

@@ -40,7 +40,7 @@ namespace TypeD.Models.Data
         /// <summary>
         /// Gets or sets the base type of the object represented by it's coresponding instance.
         /// </summary>
-        public Type TypeOBaseType { get; set; }
+        public Type TypeOBaseType { get; set; } //TODO: Remove TypeOBaseType
         /// <summary>
         /// Gets or sets the collection of child components associated with this component.
         /// </summary>

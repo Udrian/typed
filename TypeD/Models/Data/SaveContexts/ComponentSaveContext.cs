@@ -50,7 +50,6 @@ namespace TypeD.Models.Data.SaveContexts
                         Namespace = saveComponent.Namespace,
                         ParentComponent = saveComponent.ParentComponent?.FullName ?? "",
                         TemplateClass = saveComponent.Template.GetType().FullName,
-                        TypeOBaseType = saveComponent.TypeOBaseType.FullName,
                         Children = saveComponent.Children.Select(c => c.FullName).ToList()
                     }, ComponentProvider.GetPath(Project, saveComponent));
                 }

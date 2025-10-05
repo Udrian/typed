@@ -22,12 +22,14 @@ namespace TypeD.Models.Interfaces
         /// <param name="parent">The parent component to which the child will be added.</param>
         /// <param name="child">The child component to add to the parent. Cannot be <see langword="null"/>.</param>
         public void Add(Project project, Component parent, Component child);
+
         /// <summary>
         /// Retrieves the <see cref="Type"/> of the specified <see cref="Component"/>.
         /// </summary>
         /// <param name="component">The <see cref="Component"/> whose type is to be retrieved. Cannot be <see langword="null"/>.</param>
         /// <returns>The <see cref="Type"/> of the specified <paramref name="component"/>.</returns>
         public Type GetType(Component component);
+
         /// <summary>
         /// Opens the specified project and component for editing or inspection.
         /// </summary>
@@ -37,6 +39,7 @@ namespace TypeD.Models.Interfaces
         /// <param name="project">The project to be opened. Cannot be <see langword="null"/>.</param>
         /// <param name="component">The component within the project to be opened. Cannot be <see langword="null"/>.</param>
         public void Open(Project project, Component component);
+
         /// <summary>
         /// Closes the specified project and component, releasing any associated resources.
         /// </summary>
@@ -46,5 +49,21 @@ namespace TypeD.Models.Interfaces
         /// <param name="project">The project to be closed. Cannot be <see langword="null"/>.</param>
         /// <param name="component">The component within the project to be closed. Cannot be <see langword="null"/>.</param>
         public void Close(Project project, Component component);
+
+        /// <summary>
+        /// Determines whether the specified component is of the given type.
+        /// </summary>
+        /// <param name="component">The component to check.</param>
+        /// <param name="type">The type to compare against.</param>
+        /// <returns><see langword="true"/> if the specified component is of the given type; otherwise, <see langword="false"/>.</returns>
+        public bool IsOfType(Component component, Type type);
+
+        /// <summary>
+        /// Retrieves the base type of the specified <see cref="Component"/>.
+        /// </summary>
+        /// <param name="component">The <see cref="Component"/> whose base type is to be determined. Cannot be <see langword="null"/>.</param>
+        /// <returns>The <see cref="Type"/> representing the base type of the specified <see cref="Component"/>.
+        /// Returns <see langword="null"/> if the component does not have a base type.</returns>
+        public Type GetBaseType(Component component);
     }
 }

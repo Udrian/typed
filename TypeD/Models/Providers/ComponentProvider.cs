@@ -20,9 +20,16 @@ namespace TypeD.Models.Providers
         IResourceModel ResourceModel { get; set; }
         IProjectModel ProjectModel { get; set; }
         ISaveModel SaveModel { get; set; }
+        IComponentModel ComponentModel { get; set; }
+
+        // Data
+        List<Component> BaseTypeComponents { get; set; }
 
         // Constructors
-        public ComponentProvider() { }
+        public ComponentProvider()
+        {
+            BaseTypeComponents = new List<Component>();
+        }
 
         public void Init(IResourceModel resourceModel)
         {
@@ -30,27 +37,27 @@ namespace TypeD.Models.Providers
 
             ProjectModel = ResourceModel.Get<IProjectModel>();
             SaveModel = ResourceModel.Get<ISaveModel>();
+            ComponentModel = ResourceModel.Get<IComponentModel>();
         }
 
         // Functions
-        public ComponentTemplate Create(Project project, string className, string @namespace, Component component, List<string> interfaces = null)
+        public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null)
         {
-            var componentdto = TranslateComponentDTO(project, new ComponentDTO()
+            var component = TranslateComponentDTO(project, new ComponentDTO()
             {
                 ClassName = className,
                 Interfaces = interfaces ?? new List<string>(),
                 Namespace = @namespace,
-                ParentComponent = component.FullName,
-                TemplateClass = component.Template.GetType().FullName
+                ParentComponent = parentComponent.FullName,
+                TemplateClass = parentComponent.Template.GetType().FullName
             });
-            componentdto.ParentComponent = component;
 
-            component.Template.CreateCode(componentdto);
-            componentdto.TypeOBaseType = component.Template.Code.TypeOBaseType;
-            ProjectModel.InitAndSaveCode(project, component.Template.Code);
             component.Template.Init();
+            //TODO: Remove TypeOBaseType
+            component.TypeOBaseType = ComponentModel.GetBaseType(component);
+            ProjectModel.InitAndSaveCode(project, component.Template.Code);
 
-            Save(project, componentdto);
+            Save(project, component);
 
             ProjectModel.BuildComponentTree(project);
             return component.Template;
@@ -68,7 +75,12 @@ namespace TypeD.Models.Providers
             if (string.IsNullOrEmpty(fullName)) return null;
             var path = GetPath(project, fullName);
 
-            return LoadFromPath(project, path);
+            var component = LoadFromPath(project, path);
+            if (component == null)
+            {
+                component = BaseTypeComponents.Find(c => c.FullName == fullName);
+            }
+            return component;
         }
 
         private Component LoadFromPath(Project project, string path)
@@ -87,9 +99,8 @@ namespace TypeD.Models.Providers
             }
 
             //TODO: Look over this onces more
-            component.Template.CreateCode(component);
-            ProjectModel.InitCode(project, component.Template.Code);
             component.Template.Init();
+            ProjectModel.InitCode(project, component.Template.Code);
 
             return component;
         }
@@ -108,12 +119,12 @@ namespace TypeD.Models.Providers
                 Template = Activator.CreateInstance(AppDomain.CurrentDomain.GetAssemblies()
                                 .SelectMany(a => a.GetTypes())
                                 .FirstOrDefault(t => t.FullName.Equals(dto.TemplateClass))) as ComponentTemplate,
-                TypeOBaseType = AppDomain.CurrentDomain.GetAssemblies()
-                                .SelectMany(a => a.GetTypes())
-                                .FirstOrDefault(t => t.FullName.Equals(dto.TypeOBaseType)),
                 Children = dto.Children?.Select(c => Load(project, c)).ToList() ?? new List<Component>()
             };
+            component.Template.Component = component;
 
+            //TODO: Remove TypeOBaseType
+            component.TypeOBaseType = ComponentModel.GetBaseType(component);
             return component;
         }
 
@@ -148,7 +159,8 @@ namespace TypeD.Models.Providers
 
         public bool Exists(Project project, Type type)
         {
-            return File.Exists(GetPath(project, type.FullName));
+            var components = ListAll(project);
+            return components.Exists(c => c.FullName == type.FullName);
         }
 
         public List<Component> ListAll(Project project)
@@ -180,9 +192,24 @@ namespace TypeD.Models.Providers
         {
             return GetPath(project, component.FullName);
         }
+
         public string GetPath(Project project, string fullName)
         {
             return Path.Combine(GetPath(project), $"{fullName.Replace('.', Path.DirectorySeparatorChar)}.{ComponentFileEnding}");
+        }
+
+        public void AddBaseTypeComponent(Component component)
+        {
+            BaseTypeComponents.Add(component);
+        }
+        public void RemoveBaseTypeComponent(Component component)
+        {
+            BaseTypeComponents.RemoveAll(c => c.FullName == component.FullName);
+        }
+
+        public List<Component> GetBaseTypeComponents()
+        {
+            return new List<Component>(BaseTypeComponents);
         }
 
         // Internal

@@ -20,7 +20,7 @@ namespace TypeD.Code
         /// <summary>
         /// Gets a value indicating whether the current type is the base component type.
         /// </summary>
-        public bool IsBaseComponentType
+        public virtual bool IsBaseComponentType
         {
             get
             {

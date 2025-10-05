@@ -72,5 +72,27 @@ namespace TypeD.Models
                 OpenComponents.RemoveAll(c => c.FullName == component.FullName);
             }
         }
+
+        public bool IsOfType(Component component, Type type)
+        {
+            if (component == null)
+            {
+                return false;
+            }
+            if (component.FullName == type.FullName)
+            {
+                return true;
+            }
+            return IsOfType(component.ParentComponent, type);
+        }
+
+        public Type GetBaseType(Component component)
+        {
+            if(component.ParentComponent == null)
+            {
+                return GetType(component);
+            }
+            return GetBaseType(component.ParentComponent);
+        }
     }
 }
