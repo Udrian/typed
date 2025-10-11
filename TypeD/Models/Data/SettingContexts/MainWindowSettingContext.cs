@@ -39,7 +39,7 @@ namespace TypeD.Models.Data.SettingContexts
 
             Panels = new Setting<List<Panel>>(new List<Panel>()
             {
-                new Panel("typed_tabs", true, Dock.Top, 0, false, ""),
+                new Panel("typed_viewer", true, Dock.Top, 0, false, ""),
                 new Panel("typed_component", true, Dock.Left, 175, false, ""),
                 new Panel("typed_output", true, Dock.Bottom, 250, true, ""),
                 new Panel("typed_componenttypebrowser", true, Dock.Right, 175, true, "typed_output")
