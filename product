@@ -4,5 +4,6 @@
     "externals": [],
     "dependencies": [
     ],
-    "type" : "TypeDModule"
+    "type" : "module",
+    "testName": "TypeDTest"
 }
