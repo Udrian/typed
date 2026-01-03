@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Windows;
-using TypeD.Models.Data;
+﻿using TypeD.Models.Data;
 using TypeD.Models.Data.SettingContexts;
 using TypeD.Models.Interfaces;
 using TypeD.View;
@@ -80,7 +76,7 @@ namespace TypeD.Models
             UINotifyModel.RemoveFrom("MainWindow", panel);
         }
 
-        public void AttachPanel(string id, string title, UIElement view)
+        public void AttachPanel(string id, string title, Avalonia.Controls.Control view)
         {
             if (Panels.ContainsKey(id))
                 return;

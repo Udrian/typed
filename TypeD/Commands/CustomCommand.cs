@@ -1,5 +1,4 @@
-﻿using System;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using TypeD.Models.Interfaces;
 
 namespace TypeD.Commands
@@ -14,8 +13,8 @@ namespace TypeD.Commands
 
         public event EventHandler CanExecuteChanged
         {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
+            add {  }
+            remove {  }
         }
 
         // Constructors
@@ -42,11 +41,6 @@ namespace TypeD.Commands
         public virtual void Execute(object parameter)
         {
             execute(parameter);
-        }
-
-        public void RaiseCanExecuteChanged()
-        {
-            CommandManager.InvalidateRequerySuggested();
         }
     }
 

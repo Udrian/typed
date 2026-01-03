@@ -1,17 +1,16 @@
-﻿using System.Linq;
-using TypeD.View;
+﻿using TypeD.View;
 using TypeD.ViewModel;
 
 namespace TypeD.Helpers
 {
     public static class ViewHelper
     {
-        public static void InitMenu(System.Windows.Controls.ItemsControl currentMenu, MenuItem item, ViewModelBase model)
+        public static void InitMenu(Avalonia.Controls.ItemsControl currentMenu, MenuItem item, ViewModelBase model)
         {
-            System.Windows.Controls.MenuItem newMenuItem = null;
+            Avalonia.Controls.MenuItem newMenuItem = null;
             foreach (var i in currentMenu.Items)
             {
-                var mi = i as System.Windows.Controls.MenuItem;
+                var mi = i as Avalonia.Controls.MenuItem;
                 if ((string)mi.Header == item.Name)
                 {
                     newMenuItem = mi;
@@ -21,10 +20,10 @@ namespace TypeD.Helpers
 
             if (newMenuItem == null)
             {
-                newMenuItem = new System.Windows.Controls.MenuItem() { Header = item.Name };
+                newMenuItem = new Avalonia.Controls.MenuItem() { Header = item.Name };
                 if (item.Click != null)
                 {
-                    newMenuItem.Click += (object sender, System.Windows.RoutedEventArgs e) =>
+                    newMenuItem.Click += (object sender, Avalonia.Interactivity.RoutedEventArgs e) =>
                     {
                         object param = null;
                         if (!string.IsNullOrEmpty(item.ClickParameter))

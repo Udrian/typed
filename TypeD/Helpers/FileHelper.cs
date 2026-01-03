@@ -1,10 +1,21 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using Avalonia.Platform.Storage;
 
 namespace TypeD.Helpers
 {
     public static class FileHelper
     {
+        public static FilePickerFileType SolutionFileType { get; } = new("Solution Files")
+        {
+            Patterns = ["*.sln"],
+            MimeTypes = ["5application/octet-stream"]
+        };
+
+        public static FilePickerFileType TypeOProjectFileType { get; } = new("TypeO Projects")
+        {
+            Patterns = ["*.typeo"],
+            MimeTypes = ["5application/octet-stream"]
+        };
+
         public static List<string> FetchStringList(string filePath, string startBlock, string endBlock, string startDelimiter = "<", string endDelimiter = ">")
         {
             var output = new List<string>();
