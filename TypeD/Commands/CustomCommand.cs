@@ -1,12 +1,13 @@
 ﻿using System.Windows.Input;
 using TypeD.Models.Interfaces;
+using TypeD.ViewModel;
 
 namespace TypeD.Commands
 {
     public class CustomCommand : ICommand
     {
         // Models
-        public IResourceModel ResourceModel { get; private set; }
+        public IResourceModel ResourceModel { get { return ViewModelBase.ResourceModel; } }
 
         private readonly Predicate<object> canExecute;
         private readonly Action<object> execute;
@@ -18,13 +19,12 @@ namespace TypeD.Commands
         }
 
         // Constructors
-        public CustomCommand(IResourceModel resourceModel = null) : this(null, null, resourceModel) { }
-        public CustomCommand(Action<object> execute, IResourceModel resourceModel = null) : this(execute, null, resourceModel) { }
-        public CustomCommand(Action<object> execute, Predicate<object> canExecute, IResourceModel resourceModel = null)
+        public CustomCommand() : this(null, null) { }
+        public CustomCommand(Action<object> execute) : this(execute, null) { }
+        public CustomCommand(Action<object> execute, Predicate<object> canExecute)
         {
             this.execute = execute;
             this.canExecute = canExecute;
-            ResourceModel = resourceModel;
         }
 
         // Functions
@@ -47,7 +47,7 @@ namespace TypeD.Commands
     public abstract class CustomCommand<T> : CustomCommand where T: class
     {
         // Constructors
-        public CustomCommand(IResourceModel resourceModel = null) : base(null, null, resourceModel) { }
+        public CustomCommand(IResourceModel resourceModel = null) : base(null, null) { }
 
         // Functions
         public override bool CanExecute(object parameter)

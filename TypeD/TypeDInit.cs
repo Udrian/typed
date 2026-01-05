@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
-using TypeD.Models;
+﻿using TypeD.Models;
 using TypeD.Models.Data;
 using TypeD.Models.Data.SettingContexts;
 using TypeD.Models.Interfaces;
 using TypeD.Models.Providers;
+using TypeD.ViewModel;
 
 namespace TypeD
 {
@@ -11,6 +11,8 @@ namespace TypeD
     {
         public static void Init(IResourceModel resourceModel)
         {
+            ViewModelBase.ResourceModel = resourceModel;
+
             resourceModel.Add(new List<object>() {
             //Models
                 new ModuleModel(),
