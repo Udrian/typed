@@ -14,9 +14,10 @@
 			<PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
 		</PackageReference>
     	<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+    	<PackageReference Include="Dock.Model.Avalonia" Version="11.3.9" />
 	</ItemGroup>
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-		<Exec Condition="!$([MSBuild]::IsOSUnixLike())" Command="cmd /c &quot;$(ProjectDir)../typer/typer.bat dependency -p $(ProjectDir)../&quot;"/>
-		<Exec Condition="$([MSBuild]::IsOSUnixLike())" Command="bash &quot;$(ProjectDir)../typer/typer.sh&quot; dependency -p &quot;$(ProjectDir)../&quot;"/>
+		<Exec Condition="!$([MSBuild]::IsOSUnixLike())" Command="cmd /c &quot;$(ProjectDir)../typer/typer.bat dependency -p $(ProjectDir)../&quot;" />
+		<Exec Condition="$([MSBuild]::IsOSUnixLike())" Command="bash &quot;$(ProjectDir)../typer/typer.sh&quot; dependency -p &quot;$(ProjectDir)../&quot;" />
 	</Target>
 </Project>

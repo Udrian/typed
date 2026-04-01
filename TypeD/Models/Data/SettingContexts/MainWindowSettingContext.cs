@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Windows.Controls;
+﻿using Dock.Model.Core;
 
 namespace TypeD.Models.Data.SettingContexts
 {
@@ -10,12 +9,12 @@ namespace TypeD.Models.Data.SettingContexts
         {
             public string ID { get; set; }
             public bool Open { get; set; }
-            public Dock Dock { get; set; }
-            public int Length { get; set; }
+            public Alignment Dock { get; set; }
+            public float Length { get; set; }
             public bool Span { get; set; }
             public string Parent { get; set; }
 
-            public Panel(string id, bool open = false, Dock dock = Dock.Left, int length = 50, bool span = false, string parent = "")
+            public Panel(string id, bool open = false, Alignment dock = Alignment.Left, float length = 1, bool span = false, string parent = "")
             {
                 ID = id;
                 Open = open;
@@ -39,10 +38,10 @@ namespace TypeD.Models.Data.SettingContexts
 
             Panels = new Setting<List<Panel>>(new List<Panel>()
             {
-                new Panel("typed_viewer", true, Dock.Top, 0, false, ""),
-                new Panel("typed_component", true, Dock.Left, 175, false, ""),
-                new Panel("typed_output", true, Dock.Bottom, 250, true, ""),
-                new Panel("typed_componenttypebrowser", true, Dock.Right, 175, true, "typed_output")
+                new Panel("typed_viewer", true, Alignment.Unset, 1, false, ""),
+                new Panel("typed_component", true, Alignment.Left, 0.25f, false, "typed_viewer"),
+                new Panel("typed_output", true, Alignment.Bottom, 0.3f, true, "typed_viewer"),
+                new Panel("typed_componenttypebrowser", true, Alignment.Right, 0.25f, true, "typed_output")
             });
         }
     }
