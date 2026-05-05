@@ -4,5 +4,6 @@
     {
         public Project Project { get; set; }
         public Component Component { get; set; }
+        public bool Root { get; set; } = true;
     }
 }

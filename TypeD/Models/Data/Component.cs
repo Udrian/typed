@@ -45,16 +45,21 @@ namespace TypeD.Models.Data
         /// Gets or sets the collection of child components associated with this component.
         /// </summary>
         public List<Component> Children { get; set; }
+        /// <summary>
+        /// Gets or sets the list of properties associated with this component.
+        /// </summary>
+        public List<Property> Properties { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Component"/> class.
         /// </summary>
-        /// <remarks>This constructor initializes the <see cref="Interfaces"/> and <see cref="Children"/>
+        /// <remarks>This constructor initializes the <see cref="Interfaces"/>, <see cref="Children"/>, and <see cref="Properties"/>
         /// properties as empty lists, preparing the component for use.</remarks>
         public Component()
         {
             Interfaces = new List<Type>();
             Children = new List<Component>();
+            Properties = new List<Property>();
         }
     }
 }

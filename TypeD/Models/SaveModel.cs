@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using TypeD.Models.Data;
+﻿using TypeD.Models.Data;
 using TypeD.Models.Interfaces;
 
 namespace TypeD.Models

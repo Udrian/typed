@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using TypeD.Components;
+﻿using TypeD.Components;
 using TypeD.Helpers;
 using TypeD.Models.Data;
 using TypeD.Models.Data.SaveContexts;
@@ -51,6 +47,7 @@ namespace TypeD.Models.Providers
                 ParentComponent = parentComponent.FullName,
                 TemplateClass = parentComponent.Template.GetType().FullName
             });
+            component.Properties = ExtractProperties(parentComponent);
 
             component.Template.Init();
             //TODO: Remove TypeOBaseType
@@ -119,7 +116,21 @@ namespace TypeD.Models.Providers
                 Template = Activator.CreateInstance(AppDomain.CurrentDomain.GetAssemblies()
                                 .SelectMany(a => a.GetTypes())
                                 .FirstOrDefault(t => t.FullName.Equals(dto.TemplateClass))) as ComponentTemplate,
-                Children = dto.Children?.Select(c => Load(project, c)).ToList() ?? new List<Component>()
+                Children = dto.Children?.Select(c => Load(project, c)).ToList() ?? new List<Component>(),
+                Properties = dto.Properties?.Select(p =>
+                {
+                    var resolvedType = AppDomain.CurrentDomain.GetAssemblies()
+                        .SelectMany(a => a.GetTypes())
+                        .FirstOrDefault(t => t.FullName?.Equals(p.Type, StringComparison.OrdinalIgnoreCase) == true);
+
+                    return new Property
+                    {
+                        Name = p.Name,
+                        Description = p.Description,
+                        Value = p.Value,
+                        Type = resolvedType
+                    };
+                }).ToList() ?? new List<Property>()
             };
             component.Template.Component = component;
 
@@ -216,6 +227,30 @@ namespace TypeD.Models.Providers
         private string GetPath(Project project)
         {
             return Path.Combine(project.ProjectTypeOPath, "components");
+        }
+
+        public List<Property> ExtractProperties(Component component)
+        {
+            var componentType = ComponentModel.GetType(component);
+            List<Property> properties = new List<Property>();
+            foreach (var property in componentType.GetProperties())
+            {
+                foreach (var attribute in property.GetCustomAttributes(true))
+                {
+                    //TODO: Change this when we move ComponentProvider over to TypeDCore, so that we can directly reference the TypeOPropertyAttribute
+                    if (attribute.GetType().Name == "TypeOPropertyAttribute")
+                    {
+                        properties.Add(new Property()
+                        {
+                            Name = property.Name,
+                            //Description = (attribute as TypeOPropertyAttribute)?.Description,
+                            Type = property.PropertyType
+                        });
+                        break;
+                    }
+                }
+            }
+            return properties;
         }
     }
 }

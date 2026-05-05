@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using TypeD.Helpers;
+﻿using TypeD.Helpers;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
 using TypeD.Models.Providers.Interfaces;
@@ -50,7 +45,14 @@ namespace TypeD.Models.Data.SaveContexts
                         Namespace = saveComponent.Namespace,
                         ParentComponent = saveComponent.ParentComponent?.FullName ?? "",
                         TemplateClass = saveComponent.Template.GetType().FullName,
-                        Children = saveComponent.Children.Select(c => c.FullName).ToList()
+                        Children = saveComponent.Children.Select(c => c.FullName).ToList(),
+                        Properties = saveComponent.Properties.Select(p => new PropertyDTO
+                        {
+                            Name = p.Name,
+                            Description = p.Description,
+                            Value = p.Value,
+                            Type = p.Type?.FullName ?? ""
+                        }).ToList()
                     }, ComponentProvider.GetPath(Project, saveComponent));
                 }
 

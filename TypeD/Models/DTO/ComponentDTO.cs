@@ -37,5 +37,9 @@ namespace TypeD.Models.DTO
         /// Gets or sets the collection of child names associated with the <see cref="Component"/>.
         /// </summary>
         public List<string> Children { get; set; }
+        /// <summary>
+        /// Gets or sets the list of properties associated with the <see cref="Component"/>.
+        /// </summary>
+        public List<PropertyDTO> Properties { get; set; }
     }
 }

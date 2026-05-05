@@ -41,7 +41,8 @@ namespace TypeD.Models.Data.SettingContexts
                 new Panel("typed_viewer", true, Alignment.Unset, 1, false, ""),
                 new Panel("typed_componentexplorer", true, Alignment.Left, 0.25f, false, "typed_viewer"),
                 new Panel("typed_output", true, Alignment.Bottom, 0.3f, true, "typed_viewer"),
-                new Panel("typed_componentbrowser", true, Alignment.Right, 0.25f, true, "typed_output")
+                new Panel("typed_componentbrowser", true, Alignment.Unset, 0.25f, true, "typed_componentexplorer"),
+                new Panel("typed_properties", true, Alignment.Right, 0.25f, true, "typed_output")
             });
         }
     }
