@@ -120,12 +120,5 @@ namespace TypeD.Models.Providers.Interfaces
         /// <returns>A list of <see cref="Component"/> objects representing the components of the base type. The list will be
         /// empty if no components are associated with the base type.</returns>
         public List<Component> GetBaseTypeComponents();
-
-        /// <summary>
-        /// Extracts a list of properties from the specified component. The properties extracted is discovered by the TypeOPropertyAttribute. If the component has no properties, an empty list is returned.
-        /// </summary>
-        /// <param name="component">The component from which to extract properties. Cannot be null.</param>
-        /// <returns>A list of properties defined by the component. The list will be empty if the component has no properties.</returns>
-        public List<Property> ExtractProperties(Component component);
     }
 }

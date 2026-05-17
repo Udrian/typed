@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using TypeD.Models.Data;
+﻿using TypeD.Models.Data;
 
 namespace TypeD.Models.DTO
 {
@@ -28,15 +27,15 @@ namespace TypeD.Models.DTO
         /// <summary>
         /// Gets or sets the name of the parent <see cref="Component"/> associated with this <see cref="Component"/>.
         /// </summary>
-        public string ParentComponent { get; set; }
+        public string BaseInheritedComponent { get; set; }
         /// <summary>
         /// Gets or sets the list of interfaces associated with the current <see cref="Component"/>.
         /// </summary>
         public List<string> Interfaces { get; set; }
         /// <summary>
-        /// Gets or sets the collection of child names associated with the <see cref="Component"/>.
+        /// Gets or sets the collection of child <see cref="ComponentChildDTO"/>s associated with the <see cref="Component"/>.
         /// </summary>
-        public List<string> Children { get; set; }
+        public List<ComponentChildDTO> Children { get; set; }
         /// <summary>
         /// Gets or sets the list of properties associated with the <see cref="Component"/>.
         /// </summary>

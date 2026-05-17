@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using TypeD.Components;
+﻿using TypeD.Components;
 
 namespace TypeD.Models.Data
 {
@@ -30,9 +28,13 @@ namespace TypeD.Models.Data
         /// </summary>
         public string FullName { get { return $"{Namespace}.{ClassName}"; } }
         /// <summary>
-        /// Gets or sets the parent component of the current component.
+        /// Gets or sets the base inherited component of the current component.
         /// </summary>
-        public Component ParentComponent { get; set; }
+        public Component BaseInheritedComponent { get;  set; }
+        /// <summary>
+        /// Gets the parent component of the current component, representing a hierarchical relationship between components.
+        /// </summary>
+        public Component ParentComponent { get; internal set; }
         /// <summary>
         /// Gets or sets the list of interface types implemented by the current object.
         /// </summary>
@@ -49,6 +51,10 @@ namespace TypeD.Models.Data
         /// Gets or sets the list of properties associated with this component.
         /// </summary>
         public List<Property> Properties { get; set; }
+        /// <summary>
+        /// Gets or sets the collection of properties that are explicitly overridden by this instance.
+        /// </summary>
+        public List<Property> OveriddenProperties { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Component"/> class.
@@ -60,6 +66,7 @@ namespace TypeD.Models.Data
             Interfaces = new List<Type>();
             Children = new List<Component>();
             Properties = new List<Property>();
+            OveriddenProperties = new List<Property>();
         }
     }
 }

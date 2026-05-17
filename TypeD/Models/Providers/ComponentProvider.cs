@@ -1,6 +1,8 @@
-﻿using TypeD.Components;
+﻿using System.Text.Json;
+using TypeD.Components;
 using TypeD.Helpers;
 using TypeD.Models.Data;
+using TypeD.Models.Data.Hooks;
 using TypeD.Models.Data.SaveContexts;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
@@ -17,6 +19,7 @@ namespace TypeD.Models.Providers
         IProjectModel ProjectModel { get; set; }
         ISaveModel SaveModel { get; set; }
         IComponentModel ComponentModel { get; set; }
+        IHookModel HookModel { get; set; }
 
         // Data
         List<Component> BaseTypeComponents { get; set; }
@@ -34,6 +37,7 @@ namespace TypeD.Models.Providers
             ProjectModel = ResourceModel.Get<IProjectModel>();
             SaveModel = ResourceModel.Get<ISaveModel>();
             ComponentModel = ResourceModel.Get<IComponentModel>();
+            HookModel = ResourceModel.Get<IHookModel>();
         }
 
         // Functions
@@ -44,10 +48,12 @@ namespace TypeD.Models.Providers
                 ClassName = className,
                 Interfaces = interfaces ?? new List<string>(),
                 Namespace = @namespace,
-                ParentComponent = parentComponent.FullName,
+                BaseInheritedComponent = parentComponent.FullName,
                 TemplateClass = parentComponent.Template.GetType().FullName
             });
-            component.Properties = ExtractProperties(parentComponent);
+
+            var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(parentComponent));
+            component.Properties = extractPropertiesHook.Properties;
 
             component.Template.Init();
             //TODO: Remove TypeOBaseType
@@ -112,26 +118,75 @@ namespace TypeD.Models.Providers
                                     .SelectMany(a => a.GetTypes())
                                     .FirstOrDefault(t => t.FullName.Equals(i))).ToList(),
                 Namespace = dto.Namespace,
-                ParentComponent = Load(project, dto.ParentComponent),
+                BaseInheritedComponent = Load(project, dto.BaseInheritedComponent),
                 Template = Activator.CreateInstance(AppDomain.CurrentDomain.GetAssemblies()
                                 .SelectMany(a => a.GetTypes())
                                 .FirstOrDefault(t => t.FullName.Equals(dto.TemplateClass))) as ComponentTemplate,
-                Children = dto.Children?.Select(c => Load(project, c)).ToList() ?? new List<Component>(),
+                Children = dto.Children?.Select(c =>
+                {
+                    var child = Load(project, c.FullName);
+                    child.OveriddenProperties = c.Properties?.Select(p =>
+                    {
+                        var defaultProperty = child.Properties.FirstOrDefault(dp => dp.Name == p.Name);
+                        return new Property
+                        {
+                            Description = defaultProperty.Description,
+                            Type = defaultProperty.Type,
+                            FromComponent = defaultProperty.FromComponent,
+                            Name = p.Name,
+                            Value = p.Value
+                        };
+                    }).ToList() ?? new List<Property>();
+                    return child;
+                }).ToList() ?? new List<Component>(),
                 Properties = dto.Properties?.Select(p =>
                 {
-                    var resolvedType = AppDomain.CurrentDomain.GetAssemblies()
-                        .SelectMany(a => a.GetTypes())
-                        .FirstOrDefault(t => t.FullName?.Equals(p.Type, StringComparison.OrdinalIgnoreCase) == true);
-
                     return new Property
                     {
                         Name = p.Name,
-                        Description = p.Description,
-                        Value = p.Value,
-                        Type = resolvedType
+                        Value = p.Value
                     };
                 }).ToList() ?? new List<Property>()
             };
+
+            foreach (var child in component.Children)
+            {
+                child.OveriddenProperties = child.OveriddenProperties.Select(o =>
+                {
+                    if(o.Value is JsonElement)
+                    {
+                        o.Value = ((JsonElement)o.Value).Deserialize(o.Type, JsonSerializerOptions.Web);
+                    }
+                    return o;
+                }).ToList();
+
+                child.ParentComponent = component;
+                child.OveriddenProperties.ForEach(op =>
+                {
+                    var property = child.Properties.FirstOrDefault(p => p.Name == op.Name);
+                    if (property != null)
+                    {
+                        property.Value = op.Value;
+                    }
+                });
+            }
+
+            var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(component));
+            var defaultProperties = extractPropertiesHook.Properties;
+            component.Properties = defaultProperties.Select((d) =>
+            {
+                var newProp = component.Properties.FirstOrDefault(p => p.Name == d.Name);
+                if (newProp != null && newProp.Value is JsonElement)
+                {
+                    var val = ((JsonElement)newProp.Value).Deserialize(d.Type, JsonSerializerOptions.Web);
+                    if(!d.Value.Equals(newProp.Value))
+                    {
+                        d.Value = val;
+                    }
+                }
+                return d;
+            }).ToList();
+
             component.Template.Component = component;
 
             //TODO: Remove TypeOBaseType
@@ -227,30 +282,6 @@ namespace TypeD.Models.Providers
         private string GetPath(Project project)
         {
             return Path.Combine(project.ProjectTypeOPath, "components");
-        }
-
-        public List<Property> ExtractProperties(Component component)
-        {
-            var componentType = ComponentModel.GetType(component);
-            List<Property> properties = new List<Property>();
-            foreach (var property in componentType.GetProperties())
-            {
-                foreach (var attribute in property.GetCustomAttributes(true))
-                {
-                    //TODO: Change this when we move ComponentProvider over to TypeDCore, so that we can directly reference the TypeOPropertyAttribute
-                    if (attribute.GetType().Name == "TypeOPropertyAttribute")
-                    {
-                        properties.Add(new Property()
-                        {
-                            Name = property.Name,
-                            //Description = (attribute as TypeOPropertyAttribute)?.Description,
-                            Type = property.PropertyType
-                        });
-                        break;
-                    }
-                }
-            }
-            return properties;
         }
     }
 }

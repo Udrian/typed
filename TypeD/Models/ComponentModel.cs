@@ -80,16 +80,16 @@ namespace TypeD.Models
             {
                 return true;
             }
-            return IsOfType(component.ParentComponent, type);
+            return IsOfType(component.BaseInheritedComponent, type);
         }
 
         public Type GetBaseType(Component component)
         {
-            if(component.ParentComponent == null)
+            if(component.BaseInheritedComponent == null)
             {
                 return GetType(component);
             }
-            return GetBaseType(component.ParentComponent);
+            return GetBaseType(component.BaseInheritedComponent);
         }
     }
 }

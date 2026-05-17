@@ -1,4 +1,6 @@
-﻿using TypeD.Helpers;
+﻿using System.ComponentModel;
+using TypeD.Helpers;
+using TypeD.Models.Data.Hooks;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
 using TypeD.Models.Providers.Interfaces;
@@ -9,6 +11,7 @@ namespace TypeD.Models.Data.SaveContexts
     {
         // Models
         IProjectModel ProjectModel { get; set; }
+        IHookModel HookModel { get; set; }
 
         // Providers
         IComponentProvider ComponentProvider { get; set; }
@@ -29,6 +32,7 @@ namespace TypeD.Models.Data.SaveContexts
                 Project = param as Project;
 
             ProjectModel = resourceModel.Get<IProjectModel>();
+            HookModel = resourceModel.Get<IHookModel>();
             ComponentProvider = resourceModel.Get<IComponentProvider>();
         }
 
@@ -38,21 +42,34 @@ namespace TypeD.Models.Data.SaveContexts
             return Task.Run(() => {
                 foreach (var saveComponent in Components)
                 {
+                    var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(saveComponent));
+                    var defaultProperties = extractPropertiesHook.Properties;
+
                     JSON.Serialize(new ComponentDTO()
                     {
                         ClassName = saveComponent.ClassName,
                         Interfaces = saveComponent.Interfaces.Select(i => i.FullName).ToList(),
                         Namespace = saveComponent.Namespace,
-                        ParentComponent = saveComponent.ParentComponent?.FullName ?? "",
+                        BaseInheritedComponent = saveComponent.BaseInheritedComponent?.FullName ?? "",
                         TemplateClass = saveComponent.Template.GetType().FullName,
-                        Children = saveComponent.Children.Select(c => c.FullName).ToList(),
-                        Properties = saveComponent.Properties.Select(p => new PropertyDTO
+                        Children = saveComponent.Children.Select(c => new ComponentChildDTO
                         {
-                            Name = p.Name,
-                            Description = p.Description,
-                            Value = p.Value,
-                            Type = p.Type?.FullName ?? ""
-                        }).ToList()
+                            FullName = c.FullName,
+                            Properties = c.Properties
+                                .Where(p => c.OveriddenProperties.FirstOrDefault(d => d.Name == p.Name)?.Value != p.Value)
+                                .Select(p => new PropertyDTO
+                                {
+                                    Name = p.Name,
+                                    Value = p.Value
+                                }).ToList()
+                        }).ToList(),
+                        Properties = saveComponent.Properties
+                            .Where(p => defaultProperties.FirstOrDefault(d => d.Name == p.Name)?.Value != p.Value)
+                            .Select(p => new PropertyDTO
+                            {
+                                Name = p.Name,
+                                Value = p.Value
+                            }).ToList()
                     }, ComponentProvider.GetPath(Project, saveComponent));
                 }
 

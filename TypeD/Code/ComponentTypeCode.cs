@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.ComponentModel.Design;
 using TypeD.Models.Data;
 
 namespace TypeD.Code
@@ -16,7 +16,7 @@ namespace TypeD.Code
         /// <summary>
         /// Gets the base type of the current type.
         /// </summary>
-        public abstract Type TypeOBaseType { get; }
+        public abstract Type TypeOBaseType { get; } // TODO: Remove this.
         /// <summary>
         /// Gets a value indicating whether the current type is the base component type.
         /// </summary>
@@ -34,9 +34,9 @@ namespace TypeD.Code
         public Component Component { get; private set; }
 
         /// <summary>
-        /// Gets the parent component of the current component.
+        /// Gets the base inherited component of the current component.
         /// </summary>
-        public Component ParentComponent { get { return Component.ParentComponent; } }
+        public Component BaseInheritedComponent { get { return Component.BaseInheritedComponent; } }
 
         // Constructors
         /// <summary>
@@ -48,7 +48,89 @@ namespace TypeD.Code
             ClassName = component.ClassName;
             Namespace = component.Namespace;
             Component = component;
-            BaseClass = ParentComponent == null ? TypeOBaseType.FullName : ParentComponent.FullName;
+            BaseClass = BaseInheritedComponent == null ? TypeOBaseType.FullName : BaseInheritedComponent.FullName;
+        }
+
+        protected void TypeDInitializeCode()
+        {
+            if (Component.Properties.Count > 0)
+                Writer.AddLine("//Properties");
+            foreach (var property in Component.Properties)
+            {
+                AddPropertyCode(property);
+            }
+            
+            if(Component.Properties.Count > 0)
+                Writer.NewLine();
+            if (Component.Children.Count > 0)
+                Writer.AddLine("//Children");
+            foreach (var childComponent in Component.Children)
+            {
+                Writer.AddLeftCurlyBracket();
+                if (childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Entity")
+                {
+                    Writer.AddLine($"var child = Entities.Create<{childComponent.FullName}>();");
+                }
+                else if (childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable")
+                {
+                    Writer.AddLine($"var child = Drawables.Create<{childComponent.FullName}>();");
+                }
+                foreach (var property in childComponent.Properties)
+                {
+                    AddPropertyCode(property, "child.");
+                }
+                Writer.AddRightCurlyBrackets();
+            }
+            if (Component.Children.Count > 0)
+                Writer.NewLine();
+        }
+
+        //TODO: Should redo this in a more modular way.
+        protected void AddPropertyCode(TypeD.Models.Data.Property property, string prepend = "")
+        {
+            if (string.IsNullOrEmpty(property.Name))
+                return;
+
+            var valuestring = "";
+            if (property.Value == null)
+            {
+                valuestring = "null";
+            }
+            else if (property.Type == typeof(bool))
+            {
+                valuestring = ((bool)property.Value) ? "true" : "false";
+            }
+            else if (property.Type.IsPrimitive)
+            {
+                valuestring = property.Value.ToString();
+            }
+            else if (property.Type.IsClass || property.Type.IsValueType)
+            {
+                List<string> initList = new List<string>();
+                foreach (var initProperty in property.Type.GetProperties())
+                {
+                    if (initProperty.CanRead && initProperty.CanWrite)
+                    {
+                        var value = initProperty.GetValue(property.Value);
+                        initList.Add($"{initProperty.Name} = {value}");
+                    }
+                }
+
+                valuestring = $"new {property.Type.FullName}()";
+                if (initList.Count > 0) valuestring += "{ ";
+                var first = true;
+                foreach (var initLine in initList)
+                {
+                    valuestring += $"{(first ? "" : ", ")}{initLine}";
+                    first = false;
+                }
+                if (initList.Count > 0) valuestring += " }";
+            }
+            else
+            {
+                valuestring = property.Value.ToString();
+            }
+            Writer.AddLine($"{prepend}{property.Name} = {valuestring};");
         }
     }
 }

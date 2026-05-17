@@ -55,6 +55,15 @@ namespace TypeD.Code
             }
 
             // Functions
+
+            /// <summary>
+            /// Inserts a new, empty line into the output.
+            /// </summary>
+            public void NewLine()
+            {
+                AddLine("");
+            }
+
             /// <summary>
             /// Appends a line of text to the target file's output, optionally increasing the indentation level.
             /// </summary>

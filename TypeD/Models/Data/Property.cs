@@ -23,5 +23,9 @@ namespace TypeD.Models.Data
         /// Gets or sets the type of the property value.
         /// </summary>
         public Type Type { get; set; }
+        /// <summary>
+        /// The component this property belongs to. This reference allows the property to access its parent component, enabling interactions and updates based on the component's state and behavior.
+        /// </summary>
+        public Component FromComponent { get; set; }
     }
 }
