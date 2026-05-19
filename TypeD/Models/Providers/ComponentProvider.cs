@@ -153,23 +153,12 @@ namespace TypeD.Models.Providers
             foreach (var child in component.Children)
             {
                 child.ParentComponent = component;
-                var idProp = child.Properties.FirstOrDefault(p => p.Name == "ID");
-                if (idProp != null)
-                {
-                    idProp.Value = Guid.NewGuid().ToString();
-                }
             }
 
             var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(component));
             var defaultProperties = extractPropertiesHook.Properties;
             component.Properties = defaultProperties.Select((d) =>
             {
-                if(d.Name == "ID")
-                {
-                    d.Value = Guid.NewGuid().ToString();
-                    return d;
-                }
-
                 var newProp = component.Properties.FirstOrDefault(p => p.Name == d.Name);
                 if (newProp != null && newProp.Value is JsonElement)
                 {

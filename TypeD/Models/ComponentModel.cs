@@ -35,18 +35,11 @@ namespace TypeD.Models
         // Functions
         public void Add(Project project, Component parent, Component child)
         {
-            var idProp = child.Properties.FirstOrDefault(p => p.Name == "ID");
-            if(idProp != null)
-            {
-                idProp.Value = Guid.NewGuid().ToString();
-            }
             parent.Children.Add(child);
             ComponentProvider.Save(project, parent);
             ProjectModel.SaveCode(parent.Template.Code);
 
-            // TODO: This should only happen through UINotifyModel and not with HookModel
-            UINotifyModel.Notify("Nodes");
-            HookModel.Shoot(new ComponentFocusHook() { Project = project, Component = parent });
+            HookModel.Shoot(new ComponentAddedHook() { Parent = parent, Child = child });
         }
 
         public Type GetType(Component component)

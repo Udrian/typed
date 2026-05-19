@@ -12,6 +12,25 @@ namespace TypeD.Models.Data
     {
         // Properties
         /// <summary>
+        /// Gets the unique identifier associated with the current object.
+        /// </summary>
+        public string ID
+        {
+            get
+            {
+                var idProperty = Properties.FirstOrDefault(p => p.Name == "ID");
+                if (idProperty != null)
+                    return idProperty.Value as string;
+                return "";
+            }
+            set
+            {
+                var idProperty = Properties.FirstOrDefault(p => p.Name == "ID");
+                if (idProperty != null)
+                    idProperty.Value = value;
+            }
+        }
+        /// <summary>
         /// Gets or sets the name of the class.
         /// </summary>
         public string ClassName { get; set; }
