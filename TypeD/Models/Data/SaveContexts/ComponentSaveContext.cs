@@ -56,7 +56,7 @@ namespace TypeD.Models.Data.SaveContexts
                         {
                             FullName = c.FullName,
                             Properties = c.Properties
-                                .Where(p => c.OveriddenProperties.FirstOrDefault(d => d.Name == p.Name)?.Value != p.Value)
+                                .Where(p => p.Name != "ID" && c.OveriddenProperties.FirstOrDefault(d => d.Name == p.Name)?.Value != p.Value)
                                 .Select(p => new PropertyDTO
                                 {
                                     Name = p.Name,
@@ -64,7 +64,7 @@ namespace TypeD.Models.Data.SaveContexts
                                 }).ToList()
                         }).ToList(),
                         Properties = saveComponent.Properties
-                            .Where(p => defaultProperties.FirstOrDefault(d => d.Name == p.Name)?.Value != p.Value)
+                            .Where(p => p.Name != "ID" && defaultProperties.FirstOrDefault(d => d.Name == p.Name)?.Value != p.Value)
                             .Select(p => new PropertyDTO
                             {
                                 Name = p.Name,

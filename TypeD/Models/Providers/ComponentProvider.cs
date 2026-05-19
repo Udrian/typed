@@ -125,23 +125,24 @@ namespace TypeD.Models.Providers
                 Children = dto.Children?.Select(c =>
                 {
                     var child = Load(project, c.FullName);
-                    child.OveriddenProperties = c.Properties?.Select(p =>
+                    child.OveriddenProperties = child.Properties?.Select(p =>
                     {
-                        var defaultProperty = child.Properties.FirstOrDefault(dp => dp.Name == p.Name);
-                        return new Property
+                        return new Property(p);
+                    }).ToList() ?? new List<Property>();
+                    child.Properties = child.Properties?.Select(p =>
+                    {
+                        var childProperty = c.Properties.FirstOrDefault(op => p.Name == op.Name);
+                        if(childProperty != null)
                         {
-                            Description = defaultProperty.Description,
-                            Type = defaultProperty.Type,
-                            FromComponent = defaultProperty.FromComponent,
-                            Name = p.Name,
-                            Value = p.Value
-                        };
+                            p.Value = ((JsonElement)childProperty.Value).Deserialize(p.Type, JsonSerializerOptions.Web);
+                        }
+                        return p;
                     }).ToList() ?? new List<Property>();
                     return child;
                 }).ToList() ?? new List<Component>(),
                 Properties = dto.Properties?.Select(p =>
                 {
-                    return new Property
+                    return new Property()
                     {
                         Name = p.Name,
                         Value = p.Value
@@ -151,30 +152,24 @@ namespace TypeD.Models.Providers
 
             foreach (var child in component.Children)
             {
-                child.OveriddenProperties = child.OveriddenProperties.Select(o =>
-                {
-                    if(o.Value is JsonElement)
-                    {
-                        o.Value = ((JsonElement)o.Value).Deserialize(o.Type, JsonSerializerOptions.Web);
-                    }
-                    return o;
-                }).ToList();
-
                 child.ParentComponent = component;
-                child.OveriddenProperties.ForEach(op =>
+                var idProp = child.Properties.FirstOrDefault(p => p.Name == "ID");
+                if (idProp != null)
                 {
-                    var property = child.Properties.FirstOrDefault(p => p.Name == op.Name);
-                    if (property != null)
-                    {
-                        property.Value = op.Value;
-                    }
-                });
+                    idProp.Value = Guid.NewGuid().ToString();
+                }
             }
 
             var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(component));
             var defaultProperties = extractPropertiesHook.Properties;
             component.Properties = defaultProperties.Select((d) =>
             {
+                if(d.Name == "ID")
+                {
+                    d.Value = Guid.NewGuid().ToString();
+                    return d;
+                }
+
                 var newProp = component.Properties.FirstOrDefault(p => p.Name == d.Name);
                 if (newProp != null && newProp.Value is JsonElement)
                 {

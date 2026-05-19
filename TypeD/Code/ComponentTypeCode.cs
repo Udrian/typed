@@ -88,7 +88,7 @@ namespace TypeD.Code
         //TODO: Should redo this in a more modular way.
         protected void AddPropertyCode(TypeD.Models.Data.Property property, string prepend = "")
         {
-            if (string.IsNullOrEmpty(property.Name))
+            if (string.IsNullOrEmpty(property.Name) || property.ReadOnly)
                 return;
 
             var valuestring = "";
@@ -100,6 +100,10 @@ namespace TypeD.Code
             {
                 valuestring = ((bool)property.Value) ? "true" : "false";
             }
+            else if(property.Type == typeof(string))
+            {
+                valuestring = $"\"{(string.IsNullOrEmpty((string)property.Value) ? "" : (string)property.Value)}\"";
+            }
             else if (property.Type.IsPrimitive)
             {
                 valuestring = property.Value.ToString();
@@ -109,7 +113,7 @@ namespace TypeD.Code
                 List<string> initList = new List<string>();
                 foreach (var initProperty in property.Type.GetProperties())
                 {
-                    if (initProperty.CanRead && initProperty.CanWrite)
+                    if (initProperty.CanRead && initProperty.CanWrite && initProperty.GetSetMethod(true).IsPublic)
                     {
                         var value = initProperty.GetValue(property.Value);
                         initList.Add($"{initProperty.Name} = {value}");
