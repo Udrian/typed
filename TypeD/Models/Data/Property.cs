@@ -32,6 +32,13 @@ namespace TypeD.Models.Data
         /// </summary>
         public object Value { get; set; }
         /// <summary>
+        /// Converts the underlying value to the specified type.
+        /// </summary>
+        /// <remarks>The conversion uses a direct cast.</remarks>
+        /// <typeparam name="T">The type to which to convert the value.</typeparam>
+        /// <returns>The value converted to type <typeparamref name="T"/>.</returns>
+        public T ToValue<T>(){ return (T)Value; }
+        /// <summary>
         /// Gets or sets the type of the property value.
         /// </summary>
         public Type Type { get; set; }

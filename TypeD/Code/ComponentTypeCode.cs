@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.Design;
-using TypeD.Models.Data;
+﻿using TypeD.Models.Data;
 
 namespace TypeD.Code
 {
