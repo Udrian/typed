@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using TypeD.Models.Data;
+﻿using TypeD.Models.Data;
 
 namespace TypeD.Models.Providers.Interfaces
 {

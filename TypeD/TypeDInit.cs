@@ -30,6 +30,7 @@ namespace TypeD
                 new ModuleProvider(),
                 new ProjectProvider(),
                 new ComponentProvider(),
+                new ContentProvider()
             });
         }
 

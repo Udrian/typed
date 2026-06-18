@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using TypeD.Helpers;
+﻿using TypeD.Helpers;
 using TypeD.Models.Data;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;

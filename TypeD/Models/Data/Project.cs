@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
+﻿using System.Reflection;
 using TypeD.Models.DTO;
 using TypeD.View.TreeNodes;
 
@@ -25,6 +22,7 @@ namespace TypeD.Models.Data
         public string ProjectComponentCodePath { get { return Path.Combine(ProjectTypeOPath, "code"); } }
         public string ProjectSourcePath { get { return Path.Combine(Location, ProjectName); } }
         public string ProjectCSProjPath { get { return Path.Combine(Location, ProjectName, $"{ProjectName}.csproj"); } }
+        public string ProjectContentPath { get { return Path.Combine(Location, "content"); } }
 
         // Tree
         public Tree ComponentTree { get; set; }

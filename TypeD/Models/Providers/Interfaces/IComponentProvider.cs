@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using TypeD.Components;
+﻿using TypeD.Components;
 using TypeD.Models.Data;
 
 namespace TypeD.Models.Providers.Interfaces
