@@ -36,10 +36,20 @@ namespace TypeD.Models
         public void Add(Project project, Component parent, Component child)
         {
             parent.Children.Add(child);
+            child.ParentComponent = parent;
             ComponentProvider.Save(project, parent);
             ProjectModel.SaveCode(parent.Template.Code);
 
             HookModel.Shoot(new ComponentAddedHook() { Parent = parent, Child = child });
+        }
+
+        public void Remove(Project project, Component child)
+        {
+            child.ParentComponent.Children.Remove(child);
+            ComponentProvider.Save(project, child.ParentComponent);
+            ProjectModel.SaveCode(child.ParentComponent.Template.Code);
+
+            HookModel.Shoot(new ComponentRemovedHook() { Child = child });
         }
 
         public Type GetType(Component component)
@@ -61,10 +71,10 @@ namespace TypeD.Models
 
         public void Close(Project project, Component component)
         {
-            if (OpenComponents.Exists(c => c.FullName == component.FullName))
+            if (OpenComponents.Exists(c => c.ID == component.ID))
             {
                 HookModel.Shoot(new CloseComponentHook() { Project = project, Component = component });
-                OpenComponents.RemoveAll(c => c.FullName == component.FullName);
+                OpenComponents.RemoveAll(c => c.ID == component.ID);
             }
         }
 

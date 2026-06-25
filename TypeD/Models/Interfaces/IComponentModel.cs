@@ -24,6 +24,14 @@ namespace TypeD.Models.Interfaces
         public void Add(Project project, Component parent, Component child);
 
         /// <summary>
+        /// Removes the specified child component from its parent within the given project.
+        /// </summary>
+        /// <param name="project">The project from which the component will be removed. Cannot be <see langword="null"/>.</param>
+        /// <param name="root">The root component from which the child will be removed.</param>
+        /// <param name="child">The child component to remove. Cannot be <see langword="null"/>.</param>
+        public void Remove(Project project, Component child);
+
+        /// <summary>
         /// Retrieves the <see cref="Type"/> of the specified <see cref="Component"/>.
         /// </summary>
         /// <param name="component">The <see cref="Component"/> whose type is to be retrieved. Cannot be <see langword="null"/>.</param>
