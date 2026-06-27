@@ -1,4 +1,5 @@
-﻿using TypeD.View;
+﻿using TypeD.Models.Data;
+using TypeD.View;
 using TypeD.View.Viewer;
 
 namespace TypeD.Models.Interfaces
@@ -12,7 +13,7 @@ namespace TypeD.Models.Interfaces
         public List<Panel> GetPanels();
         public void AddViewer<T>() where T : IViewer, new();
         public void RemoveViewer<T>() where T : IViewer, new();
-        public IViewer CreateViewer(string typeName);
+        public IViewer CreateViewer(Project project, string typeName);
         public List<string> ListViewers();
     }
 }

@@ -7,13 +7,24 @@ namespace TypeD.View.Viewer
     /// </summary>
     public interface IViewer
     {
+        Project Project { get; set; }
+
         /// <summary>
-        /// Init function
+        /// Initializes the game into the viewer. This is called when the viewer is loaded, and should be called before Load() or Unload().
         /// </summary>
-        /// <param name="project">Loaded Project</param>
-        /// <param name="component">Loaded Component</param>
-        public void Init(Project project, Component component);
-        
+        public void Init();
+
+        /// <summary>
+        /// Load a component into the game to be displayed in the viewer.
+        /// </summary>
+        /// <param name="component">Component to load</param>
+        public void Load(Component component);
+
+        /// <summary>
+        /// Unload the component from the game.
+        /// </summary>
+        public void Unload();
+
         /// <summary>
         /// Loaded component
         /// </summary>

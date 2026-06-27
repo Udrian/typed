@@ -130,12 +130,14 @@ namespace TypeD.Models
             Viewers.Remove(typeof(T));
         }
 
-        public IViewer CreateViewer(string typeName)
+        public IViewer CreateViewer(Project project, string typeName)
         {
             if (!Viewers.Exists(v => v.FullName == typeName))
                 return null;
 
-            return Activator.CreateInstance(Viewers.Find(v => v.FullName == typeName)) as IViewer;
+            var viewer = Activator.CreateInstance(Viewers.Find(v => v.FullName == typeName)) as IViewer;
+            viewer.Project = project;
+            return viewer;
         }
 
         public List<string> ListViewers()
