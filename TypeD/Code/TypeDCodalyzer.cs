@@ -69,6 +69,7 @@ namespace TypeD.Code
             base.Generate();
 
             Writer.TargetFile = TypeDFile;
+            Writer.Clear();
             WriteFile();
         }
 

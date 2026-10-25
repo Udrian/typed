@@ -117,7 +117,7 @@ namespace TypeD.Models
 
         public void SaveCode(Codalyzer code)
         {
-            var codeSaveContext = SaveModel.GetSaveContext<CodeSaveContext>();
+           var codeSaveContext = SaveModel.GetSaveContext<CodeSaveContext>();
             if (codeSaveContext.Codes.Exists(c => c.FilePath() == code.FilePath()))
                 codeSaveContext.Codes.RemoveAll(c => c.FilePath() == code.FilePath());
             codeSaveContext.Codes.Add(code);

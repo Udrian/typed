@@ -35,21 +35,31 @@ namespace TypeD.Models
         // Functions
         public void Add(Project project, Component parent, Component child)
         {
-            parent.Children.Add(child);
-            child.ParentComponent = parent;
-            ComponentProvider.Save(project, parent);
-            ProjectModel.SaveCode(parent.Template.Code);
+            var childInstance = ComponentProvider.CreateInstance(project, child);
+            parent.Children.Add(childInstance);
+            childInstance.ParentComponent = parent;
+            var rootComponent = GetRootComponent(parent);
+            ComponentProvider.Save(project, rootComponent);
+            ProjectModel.SaveCode(rootComponent.Template.Code);
 
-            HookModel.Shoot(new ComponentAddedHook() { Parent = parent, Child = child });
+            HookModel.Shoot(new ComponentAddedHook() { Parent = parent, Child = childInstance });
         }
 
         public void Remove(Project project, Component child)
         {
-            child.ParentComponent.Children.Remove(child);
-            ComponentProvider.Save(project, child.ParentComponent);
-            ProjectModel.SaveCode(child.ParentComponent.Template.Code);
+            var parent = child.ParentComponent;
+            if (parent == null)
+            {
+                return;
+            }
 
-            HookModel.Shoot(new ComponentRemovedHook() { Child = child });
+            parent.Children.Remove(child);
+            var rootComponent = GetRootComponent(parent);
+            ComponentProvider.Save(project, rootComponent);
+            ProjectModel.SaveCode(rootComponent.Template.Code);
+
+            HookModel.Shoot(new ComponentRemovedHook() { Parent = parent, Child = child });
+            child.ParentComponent = null;
         }
 
         public Type GetType(Component component)
@@ -71,10 +81,10 @@ namespace TypeD.Models
 
         public void Close(Project project, Component component)
         {
-            if (OpenComponents.Exists(c => c.ID == component.ID))
+            if (OpenComponents.Exists(c => c.FullName == component.FullName))
             {
                 HookModel.Shoot(new CloseComponentHook() { Project = project, Component = component });
-                OpenComponents.RemoveAll(c => c.ID == component.ID);
+                OpenComponents.RemoveAll(c => c.FullName == component.FullName);
             }
         }
 
@@ -98,6 +108,16 @@ namespace TypeD.Models
                 return GetType(component);
             }
             return GetBaseType(component.BaseInheritedComponent);
+        }
+
+        private static Component GetRootComponent(Component component)
+        {
+            while (component.ParentComponent != null)
+            {
+                component = component.ParentComponent;
+            }
+
+            return component;
         }
     }
 }

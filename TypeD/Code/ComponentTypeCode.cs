@@ -63,25 +63,51 @@ namespace TypeD.Code
                 Writer.NewLine();
             if (Component.Children.Count > 0)
                 Writer.AddLine("//Children");
-            foreach (var childComponent in Component.Children)
-            {
-                Writer.AddLeftCurlyBracket();
-                if (childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Entity")
-                {
-                    Writer.AddLine($"var child = Entities.Create<{childComponent.FullName}>();");
-                }
-                else if (childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable")
-                {
-                    Writer.AddLine($"var child = Drawables.Create<{childComponent.FullName}>();");
-                }
-                foreach (var property in childComponent.Properties)
-                {
-                    AddPropertyCode(property, "child.");
-                }
-                Writer.AddRightCurlyBrackets();
-            }
+            var childIndex = 0;
+            AddChildrenCode(Component, "this", false, ref childIndex);
             if (Component.Children.Count > 0)
                 Writer.NewLine();
+        }
+
+        private void AddChildrenCode(Component parent, string parentExpression, bool instanceChildrenOnly, ref int childIndex)
+        {
+            var children = instanceChildrenOnly
+                ? parent.Children.Where(child => !parent.DefinitionChildren.Contains(child))
+                : parent.Children;
+
+            foreach (var childComponent in children)
+            {
+                var isEntity = childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Entity";
+                var isDrawable = childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable";
+                if (!isEntity && !isDrawable)
+                {
+                    continue;
+                }
+
+                var variableName = $"child{childIndex++}";
+                var collection = isEntity ? $"{parentExpression}.Entities" : $"{parentExpression}.Drawables";
+                Writer.AddLeftCurlyBracket();
+                Writer.AddLine($"var {variableName} = {collection}.Create<{childComponent.FullName}>(\"{childComponent.ID}\");");
+                foreach (var property in childComponent.Properties)
+                {
+                    bool shouldWrite = true;
+                    if(childComponent.OveriddenProperties.Find(op => op.Name == property.Name && object.Equals(op.Value, property.Value)) != null)
+                    {
+                        shouldWrite = false;
+                    }
+                    if(shouldWrite)
+                    {
+                        AddPropertyCode(property, $"{variableName}.");
+                    }
+                }
+
+                if (isEntity)
+                {
+                    AddChildrenCode(childComponent, variableName, true, ref childIndex);
+                }
+
+                Writer.AddRightCurlyBrackets();
+            }
         }
 
         //TODO: Should redo this in a more modular way.

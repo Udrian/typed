@@ -73,6 +73,11 @@ namespace TypeD.Models.Providers
             SaveModel.AddSave<ComponentSaveContext>();
         }
 
+        public Component CreateInstance(Project project, Component component)
+        {
+            return CloneComponent(project, component, new Dictionary<Component, Component>());
+        }
+
         public Component Load(Project project, string fullName)
         {
             if (string.IsNullOrEmpty(fullName)) return null;
@@ -122,24 +127,7 @@ namespace TypeD.Models.Providers
                 Template = Activator.CreateInstance(AppDomain.CurrentDomain.GetAssemblies()
                                 .SelectMany(a => a.GetTypes())
                                 .FirstOrDefault(t => t.FullName.Equals(dto.TemplateClass))) as ComponentTemplate,
-                Children = dto.Children?.Select(c =>
-                {
-                    var child = Load(project, c.FullName);
-                    child.OveriddenProperties = child.Properties?.Select(p =>
-                    {
-                        return new Property(p);
-                    }).ToList() ?? new List<Property>();
-                    child.Properties = child.Properties?.Select(p =>
-                    {
-                        var childProperty = c.Properties.FirstOrDefault(op => p.Name == op.Name);
-                        if(childProperty != null)
-                        {
-                            p.Value = ((JsonElement)childProperty.Value).Deserialize(p.Type, JsonSerializerOptions.Web);
-                        }
-                        return p;
-                    }).ToList() ?? new List<Property>();
-                    return child;
-                }).ToList() ?? new List<Component>(),
+                Children = dto.Children?.Select(c => TranslateChildDTO(project, c)).ToList() ?? new List<Component>(),
                 Properties = dto.Properties?.Select(p =>
                 {
                     return new Property()
@@ -150,6 +138,7 @@ namespace TypeD.Models.Providers
                 }).ToList() ?? new List<Property>()
             };
 
+            component.DefinitionChildren = new List<Component>(component.Children);
             foreach (var child in component.Children)
             {
                 child.ParentComponent = component;
@@ -170,12 +159,99 @@ namespace TypeD.Models.Providers
                 }
                 return d;
             }).ToList();
+            component.OveriddenProperties = component.Properties.Select(property => new Property(property)).ToList();
 
             component.Template.Component = component;
 
             //TODO: Remove TypeOBaseType
             component.TypeOBaseType = ComponentModel.GetBaseType(component);
             return component;
+        }
+
+        private Component TranslateChildDTO(Project project, ComponentChildDTO dto)
+        {
+            var definition = Load(project, dto.FullName);
+            if (definition == null)
+            {
+                throw new InvalidDataException($"Child component '{dto.FullName}' could not be loaded.");
+            }
+
+            var child = CreateInstance(project, definition);
+            var propertyOverrides = dto.Properties ?? new List<PropertyDTO>();
+            child.Properties = child.Properties.Select(property =>
+            {
+                var propertyOverride = propertyOverrides.FirstOrDefault(p => p.Name == property.Name);
+                if (propertyOverride?.Value is JsonElement jsonValue)
+                {
+                    property.Value = jsonValue.Deserialize(property.Type, JsonSerializerOptions.Web);
+                }
+                else if (propertyOverride != null)
+                {
+                    property.Value = propertyOverride.Value;
+                }
+                return property;
+            }).ToList();
+
+            if (dto.Children != null)
+            {
+                child.Children.RemoveAll(nested => !child.DefinitionChildren.Contains(nested));
+                foreach (var nestedDTO in dto.Children)
+                {
+                    var nestedChild = TranslateChildDTO(project, nestedDTO);
+                    nestedChild.ParentComponent = child;
+                    child.Children.Add(nestedChild);
+                }
+            }
+
+            foreach (var nestedChild in child.Children)
+            {
+                nestedChild.ParentComponent = child;
+            }
+
+            return child;
+        }
+
+        private Component CloneComponent(Project project, Component source, Dictionary<Component, Component> clones)
+        {
+            if (clones.TryGetValue(source, out var existingClone))
+            {
+                return existingClone;
+            }
+
+            var clone = new Component
+            {
+                ClassName = source.ClassName,
+                Namespace = source.Namespace,
+                BaseInheritedComponent = source.BaseInheritedComponent,
+                Interfaces = new List<Type>(source.Interfaces),
+                TypeOBaseType = source.TypeOBaseType,
+                Properties = source.Properties.Select(property => new Property(property)).ToList(),
+                OveriddenProperties = source.OveriddenProperties.Select(property => new Property(property)).ToList(),
+                Template = Activator.CreateInstance(source.Template.GetType()) as ComponentTemplate
+            };
+            clones.Add(source, clone);
+
+            clone.Children = source.Children
+                .Select(child => CloneComponent(project, child, clones))
+                .ToList();
+            clone.DefinitionChildren = source.DefinitionChildren
+                .Select(child => CloneComponent(project, child, clones))
+                .ToList();
+
+            foreach (var child in clone.Children)
+            {
+                child.ParentComponent = clone;
+            }
+
+            if (clone.Template == null)
+            {
+                throw new InvalidOperationException($"Component template '{source.Template.GetType().FullName}' could not be cloned.");
+            }
+
+            clone.Template.Component = clone;
+            clone.Template.Init();
+            ProjectModel.InitCode(project, clone.Template.Code);
+            return clone;
         }
 
         public void Delete(Project project, Component component)

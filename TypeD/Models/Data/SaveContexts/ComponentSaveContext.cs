@@ -42,8 +42,6 @@ namespace TypeD.Models.Data.SaveContexts
             return Task.Run(() => {
                 foreach (var saveComponent in Components)
                 {
-                    var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(saveComponent));
-                    var defaultProperties = extractPropertiesHook.Properties;
 
                     JSON.Serialize(new ComponentDTO()
                     {
@@ -52,19 +50,9 @@ namespace TypeD.Models.Data.SaveContexts
                         Namespace = saveComponent.Namespace,
                         BaseInheritedComponent = saveComponent.BaseInheritedComponent?.FullName ?? "",
                         TemplateClass = saveComponent.Template.GetType().FullName,
-                        Children = saveComponent.Children.Select(c => new ComponentChildDTO
-                        {
-                            FullName = c.FullName,
-                            Properties = c.Properties
-                                .Where(p => p.Name != "ID" && c.OveriddenProperties.FirstOrDefault(d => d.Name == p.Name)?.Value != p.Value)
-                                .Select(p => new PropertyDTO
-                                {
-                                    Name = p.Name,
-                                    Value = p.Value
-                                }).ToList()
-                        }).ToList(),
+                        Children = saveComponent.Children.Select(CreateChildDTO).ToList(),
                         Properties = saveComponent.Properties
-                            .Where(p => p.Name != "ID" && defaultProperties.FirstOrDefault(d => d.Name == p.Name)?.Value != p.Value)
+                            .Where(p => p.Name != "ID" && !object.Equals(saveComponent.OveriddenProperties.FirstOrDefault(d => d.Name == p.Name)?.Value, p.Value))
                             .Select(p => new PropertyDTO
                             {
                                 Name = p.Name,
@@ -119,6 +107,25 @@ namespace TypeD.Models.Data.SaveContexts
                 if (!Project.IsClosing)
                     ProjectModel.BuildComponentTree(Project);
             });
+        }
+
+        private ComponentChildDTO CreateChildDTO(Component component)
+        {
+            return new ComponentChildDTO
+            {
+                FullName = component.FullName,
+                Properties = component.Properties
+                    .Where(p => !object.Equals(component.OveriddenProperties.FirstOrDefault(d => d.Name == p.Name)?.Value, p.Value))
+                    .Select(p => new PropertyDTO
+                    {
+                        Name = p.Name,
+                        Value = p.Value
+                    }).ToList(),
+                Children = component.Children
+                    .Where(child => !component.DefinitionChildren.Contains(child))
+                    .Select(CreateChildDTO)
+                    .ToList()
+            };
         }
     }
 }

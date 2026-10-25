@@ -34,6 +34,14 @@ namespace TypeD.Models.Providers.Interfaces
         public void Save(Project project, Component component);
 
         /// <summary>
+        /// Creates an independent component instance with the same definition and children.
+        /// </summary>
+        /// <param name="project">The project used to initialize the cloned component's generated code.</param>
+        /// <param name="component">The component definition to clone.</param>
+        /// <returns>A component instance with independent properties and child relationships.</returns>
+        public Component CreateInstance(Project project, Component component);
+
+        /// <summary>
         /// Loads a component from the specified project using its fully qualified name.
         /// </summary>
         /// <param name="project">The project from which to load the component. Cannot be <see langword="null"/>.</param>

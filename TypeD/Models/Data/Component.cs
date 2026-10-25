@@ -30,6 +30,33 @@ namespace TypeD.Models.Data
                     idProperty.Value = value;
             }
         }
+
+        public string FullParentPath
+        {
+            get
+            {
+                if (ParentComponent == null)
+                    return "";
+                return ParentComponent.FullParentPath + ParentComponent.ID + "/";
+            }
+        }
+
+        public string Name
+        {
+            get
+            {
+                var nameProperty = Properties.FirstOrDefault(p => p.Name == "Name");
+                if (nameProperty != null && !string.IsNullOrEmpty(nameProperty.Value as string))
+                    return nameProperty.Value as string;
+                return ClassName;
+            }
+            set
+            {
+                var nameProperty = Properties.FirstOrDefault(p => p.Name == "Name");
+                if (nameProperty != null)
+                    nameProperty.Value = value;
+            }
+        }
         /// <summary>
         /// Gets or sets the name of the class.
         /// </summary>
@@ -67,6 +94,10 @@ namespace TypeD.Models.Data
         /// </summary>
         public List<Component> Children { get; set; }
         /// <summary>
+        /// Gets or sets the children defined by this component's own definition.
+        /// </summary>
+        public List<Component> DefinitionChildren { get; set; }
+        /// <summary>
         /// Gets or sets the list of properties associated with this component.
         /// </summary>
         public List<Property> Properties { get; set; }
@@ -84,6 +115,7 @@ namespace TypeD.Models.Data
         {
             Interfaces = new List<Type>();
             Children = new List<Component>();
+            DefinitionChildren = new List<Component>();
             Properties = new List<Property>();
             OveriddenProperties = new List<Property>();
         }
