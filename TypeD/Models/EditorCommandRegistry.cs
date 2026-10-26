@@ -1,10 +1,13 @@
 using TypeD.Models.Data;
+using TypeD.Models.Data.SettingContexts;
 using TypeD.Models.Interfaces;
 
 namespace TypeD.Models
 {
     internal sealed class EditorCommandRegistry : IEditorCommandRegistry
     {
+        private ISettingModel SettingModel;
+
         private sealed class Registration : IDisposable
         {
             private readonly EditorCommandRegistry Registry;
@@ -50,6 +53,7 @@ namespace TypeD.Models
 
         public void Init(IResourceModel resourceModel)
         {
+            SettingModel = resourceModel.Get<ISettingModel>();
         }
 
         public IDisposable Register(
@@ -77,6 +81,10 @@ namespace TypeD.Models
                 execute,
                 canExecute,
                 parameterProvider);
+
+            var shortcutOverrides = SettingModel.GetContext<MainWindowSettingContext>()?.ShortcutOverrides.Value;
+            if (shortcutOverrides != null && shortcutOverrides.TryGetValue(id, out var shortcut))
+                command.Shortcut = shortcut;
 
             lock (SyncRoot)
                 RegisteredCommands[id] = new RegisteredCommand(command, token);

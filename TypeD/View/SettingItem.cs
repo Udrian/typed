@@ -13,14 +13,16 @@ namespace TypeD.View
         // Properties
         public string Title { get; set; }
         public string Description { get; set; }
+        public string Category { get; set; }
         public ISetting Setting { get; set; }
         public Action<object> Set { get; set; }
 
         // Constructors
-        public SettingItem(string title, string description, ISetting setting, Action<object> set)
+        public SettingItem(string title, string description, ISetting setting, Action<object> set, string category = "General")
         {
             Title = title;
             Description = description;
+            Category = category;
             Setting = setting;
             Set = set;
         }
