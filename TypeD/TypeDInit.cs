@@ -36,6 +36,8 @@ namespace TypeD
 
         public static void ProjectLoad(Project project, IResourceModel resourceModel)
         {
+            resourceModel.Get<IProjectModel>().StartWatching(project);
+
             // Settings
             var SettingModel = resourceModel.Get<ISettingModel>();
             SettingModel.InitContext<MainWindowSettingContext>(project);
@@ -43,6 +45,8 @@ namespace TypeD
 
         public static void ProjectUnload(Project project, IResourceModel resourceModel)
         {
+            resourceModel.Get<IProjectModel>().StopWatching(project);
+
             // Settings
             var SettingModel = resourceModel.Get<ISettingModel>();
             SettingModel.RemoveContext<MainWindowSettingContext>();

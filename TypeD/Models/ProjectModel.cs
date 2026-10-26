@@ -2,6 +2,11 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using TypeD.Code;
 using TypeD.Helpers;
@@ -22,6 +27,11 @@ namespace TypeD.Models
         ISaveModel SaveModel { get; set; }
         IResourceModel ResourceModel { get; set; }
         ILogModel LogModel { get; set; }
+        private readonly ConcurrentDictionary<Project, ProjectFileWatcher> ProjectWatchers = new();
+        private readonly ConditionalWeakTable<Project, SemaphoreSlim> BuildLocks = new();
+        private static readonly Regex BuildDiagnosticRegex = new(
+            @"^(?:(?<file>.+?)(?:\((?<line>\d+)(?:,(?<column>\d+))?\))?:\s*)?(?<severity>warning|error)(?:\s+(?<code>[^:]+))?:\s*(?<message>.*)$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // Providers
         IComponentProvider ComponentProvider { get; set; }
@@ -83,15 +93,173 @@ namespace TypeD.Models
         public async Task<bool> Build(Project project)
         {
             var path = Path.Combine(project.Location, project.CSSolutionPath);
-            if (!File.Exists(path)) return false;
-
-            if (project.Assembly != null)
+            var buildLock = BuildLocks.GetValue(project, _ => new SemaphoreSlim(1, 1));
+            await buildLock.WaitAsync();
+            var warnings = new List<BuildIssue>();
+            var errors = new List<BuildIssue>();
+            try
             {
-                project.Assembly = null;
-            }
-            await CMD.Run($"dotnet build \"{path}\" --output \"{project.ProjectBuildOutputPath}\"");
+                if (!File.Exists(path))
+                {
+                    errors.Add(new BuildIssue
+                    {
+                        Severity = "error",
+                        Message = $"Solution file '{path}' does not exist."
+                    });
+                    PublishBuildStatus(project, false, true, false, "Build failed", warnings, errors);
+                    return false;
+                }
 
-            return LoadAssembly(project);
+                PublishBuildStatus(project, true, false, false, "Building project...", warnings, errors);
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "dotnet",
+                    WorkingDirectory = project.Location,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+                startInfo.ArgumentList.Add("build");
+                startInfo.ArgumentList.Add(path);
+                startInfo.ArgumentList.Add("--output");
+                startInfo.ArgumentList.Add(project.ProjectBuildOutputPath);
+                startInfo.ArgumentList.Add("--verbosity");
+                startInfo.ArgumentList.Add("minimal");
+
+                using var process = new Process { StartInfo = startInfo };
+                process.OutputDataReceived += (_, e) => HandleBuildOutput(e.Data, warnings, errors);
+                process.ErrorDataReceived += (_, e) => HandleBuildOutput(e.Data, warnings, errors);
+
+                if (!process.Start())
+                {
+                    throw new InvalidOperationException("The dotnet build process could not be started.");
+                }
+
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+                await process.WaitForExitAsync();
+                process.WaitForExit();
+
+                var succeeded = process.ExitCode == 0 && LoadAssembly(project);
+                if (process.ExitCode != 0 && errors.Count == 0)
+                {
+                    errors.Add(new BuildIssue
+                    {
+                        Severity = "error",
+                        Message = $"Build failed with exit code {process.ExitCode}."
+                    });
+                }
+                else if (!succeeded && errors.Count == 0)
+                {
+                    errors.Add(new BuildIssue
+                    {
+                        Severity = "error",
+                        Message = "Build completed, but the project assembly could not be loaded."
+                    });
+                }
+
+                PublishBuildStatus(
+                    project,
+                    false,
+                    true,
+                    succeeded,
+                    succeeded ? "Build succeeded" : "Build failed",
+                    warnings,
+                    errors);
+                return succeeded;
+            }
+            catch (Exception exception)
+            {
+                LogModel.Log($"Project build failed: {exception}");
+                errors.Add(new BuildIssue { Severity = "error", Message = exception.Message });
+                PublishBuildStatus(project, false, true, false, "Build failed", warnings, errors);
+                return false;
+            }
+            finally
+            {
+                buildLock.Release();
+            }
+        }
+
+        public void StartWatching(Project project)
+        {
+            if (ProjectWatchers.ContainsKey(project))
+                return;
+
+            var watcher = new ProjectFileWatcher(project, RequestWatchedBuild, LogModel);
+            if (!ProjectWatchers.TryAdd(project, watcher))
+                watcher.Dispose();
+        }
+
+        public void StopWatching(Project project)
+        {
+            if (ProjectWatchers.TryRemove(project, out var watcher))
+                watcher.Dispose();
+        }
+
+        private void RequestWatchedBuild(Project project)
+        {
+            if (project.IsClosing)
+                return;
+
+            _ = Build(project);
+        }
+
+        private void PublishBuildStatus(
+            Project project,
+            bool isBuilding,
+            bool isComplete,
+            bool succeeded,
+            string status,
+            List<BuildIssue> warnings,
+            List<BuildIssue> errors)
+        {
+            HookModel.Shoot(new BuildStatusChangedHook
+            {
+                Project = project,
+                IsBuilding = isBuilding,
+                IsComplete = isComplete,
+                Succeeded = succeeded,
+                Status = status,
+                Warnings = new List<BuildIssue>(warnings),
+                Errors = new List<BuildIssue>(errors)
+            });
+        }
+
+        private static void AddBuildDiagnostic(string output, List<BuildIssue> warnings, List<BuildIssue> errors)
+        {
+            if (string.IsNullOrWhiteSpace(output))
+                return;
+
+            var match = BuildDiagnosticRegex.Match(output.Trim());
+            if (!match.Success)
+                return;
+
+            var issue = new BuildIssue
+            {
+                Severity = match.Groups["severity"].Value.ToLowerInvariant(),
+                Code = match.Groups["code"].Value.Trim(),
+                Message = match.Groups["message"].Value.Trim(),
+                File = match.Groups["file"].Value.Trim(),
+                Line = int.TryParse(match.Groups["line"].Value, out var line) ? line : null,
+                Column = int.TryParse(match.Groups["column"].Value, out var column) ? column : null
+            };
+
+            lock (warnings)
+            {
+                (issue.Severity == "warning" ? warnings : errors).Add(issue);
+            }
+        }
+
+        private static void HandleBuildOutput(string output, List<BuildIssue> warnings, List<BuildIssue> errors)
+        {
+            if (output == null)
+                return;
+
+            CMD.ReportOutput(output);
+            AddBuildDiagnostic(output, warnings, errors);
         }
 
         public void Run(Project project)

@@ -9,6 +9,8 @@ namespace TypeD.Models.Interfaces
         public void AddModule(Project project, Module module);
         public void RemoveModule(Project project, string moduleName);
         public Task<bool> Build(Project project);
+        public void StartWatching(Project project);
+        public void StopWatching(Project project);
         public void Run(Project project);
         public void InitCode(Project project, Codalyzer code);
         public void SaveCode(Codalyzer code);

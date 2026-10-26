@@ -10,6 +10,11 @@ namespace TypeD.Helpers
     {
         public static event Action<string> Output;
 
+        public static void ReportOutput(string output)
+        {
+            Output?.Invoke(output);
+        }
+
         public static async Task Run(string cmd)
         {
             await Run(new string[] { cmd });
@@ -63,7 +68,7 @@ namespace TypeD.Helpers
                 {
                     var line = sr.ReadLine();
                     if(line != null)
-                        Output?.Invoke(line);
+                        ReportOutput(line);
                 }
             }
         }
