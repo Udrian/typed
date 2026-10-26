@@ -6,6 +6,11 @@
     public class ComponentChildDTO
     {
         /// <summary>
+        /// Gets or sets the unique identifier of this child component instance.
+        /// </summary>
+        public string ID { get; set; }
+
+        /// <summary>
         /// Gets or sets the fully resolved Component type reflection of the child component.
         /// </summary>
         public string FullName { get; set; }

@@ -177,9 +177,26 @@ namespace TypeD.Models.Providers
             }
 
             var child = CreateInstance(project, definition);
+            ApplyChildDTO(project, child, dto);
+            return child;
+        }
+
+        private void ApplyChildDTO(Project project, Component child, ComponentChildDTO dto)
+        {
+            if (!string.IsNullOrEmpty(dto.ID))
+            {
+                child.ID = dto.ID;
+            }
+
             var propertyOverrides = dto.Properties ?? new List<PropertyDTO>();
             child.Properties = child.Properties.Select(property =>
             {
+                if (property.Name == "ID" && !string.IsNullOrEmpty(dto.ID))
+                {
+                    property.Value = dto.ID;
+                    return property;
+                }
+
                 var propertyOverride = propertyOverrides.FirstOrDefault(p => p.Name == property.Name);
                 if (propertyOverride?.Value is JsonElement jsonValue)
                 {
@@ -195,11 +212,25 @@ namespace TypeD.Models.Providers
             if (dto.Children != null)
             {
                 child.Children.RemoveAll(nested => !child.DefinitionChildren.Contains(nested));
+                var matchedDefinitionChildren = new HashSet<Component>();
                 foreach (var nestedDTO in dto.Children)
                 {
-                    var nestedChild = TranslateChildDTO(project, nestedDTO);
-                    nestedChild.ParentComponent = child;
-                    child.Children.Add(nestedChild);
+                    var nestedChild = child.Children.FirstOrDefault(nested =>
+                        !matchedDefinitionChildren.Contains(nested) &&
+                        nested.FullName == nestedDTO.FullName &&
+                        (string.IsNullOrEmpty(nestedDTO.ID) || nested.ID == nestedDTO.ID));
+
+                    if (nestedChild != null)
+                    {
+                        matchedDefinitionChildren.Add(nestedChild);
+                        ApplyChildDTO(project, nestedChild, nestedDTO);
+                    }
+                    else
+                    {
+                        nestedChild = TranslateChildDTO(project, nestedDTO);
+                        nestedChild.ParentComponent = child;
+                        child.Children.Add(nestedChild);
+                    }
                 }
             }
 
@@ -207,11 +238,9 @@ namespace TypeD.Models.Providers
             {
                 nestedChild.ParentComponent = child;
             }
-
-            return child;
         }
 
-        private Component CloneComponent(Project project, Component source, Dictionary<Component, Component> clones)
+        private Component CloneComponent(Project project, Component source, Dictionary<Component, Component> clones, bool useCurrentValuesAsOverrideBaseline = false)
         {
             if (clones.TryGetValue(source, out var existingClone))
             {
@@ -226,16 +255,17 @@ namespace TypeD.Models.Providers
                 Interfaces = new List<Type>(source.Interfaces),
                 TypeOBaseType = source.TypeOBaseType,
                 Properties = source.Properties.Select(property => new Property(property)).ToList(),
-                OveriddenProperties = source.OveriddenProperties.Select(property => new Property(property)).ToList(),
+                OveriddenProperties = (useCurrentValuesAsOverrideBaseline ? source.Properties : source.OveriddenProperties)
+                    .Select(property => new Property(property)).ToList(),
                 Template = Activator.CreateInstance(source.Template.GetType()) as ComponentTemplate
             };
             clones.Add(source, clone);
 
             clone.Children = source.Children
-                .Select(child => CloneComponent(project, child, clones))
+                .Select(child => CloneComponent(project, child, clones, true))
                 .ToList();
             clone.DefinitionChildren = source.DefinitionChildren
-                .Select(child => CloneComponent(project, child, clones))
+                .Select(child => CloneComponent(project, child, clones, true))
                 .ToList();
 
             foreach (var child in clone.Children)

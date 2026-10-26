@@ -71,12 +71,12 @@ namespace TypeD.Code
 
         private void AddChildrenCode(Component parent, string parentExpression, bool instanceChildrenOnly, ref int childIndex)
         {
-            var children = instanceChildrenOnly
-                ? parent.Children.Where(child => !parent.DefinitionChildren.Contains(child))
-                : parent.Children;
-
-            foreach (var childComponent in children)
+            foreach (var childComponent in parent.Children)
             {
+                var definitionChild = instanceChildrenOnly && parent.DefinitionChildren.Contains(childComponent);
+                if (definitionChild && !childComponent.HasChanges)
+                    continue;
+
                 var isEntity = childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Entity";
                 var isDrawable = childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable";
                 if (!isEntity && !isDrawable)
@@ -87,15 +87,19 @@ namespace TypeD.Code
                 var variableName = $"child{childIndex++}";
                 var collection = isEntity ? $"{parentExpression}.Entities" : $"{parentExpression}.Drawables";
                 Writer.AddLeftCurlyBracket();
-                Writer.AddLine($"var {variableName} = {collection}.Create<{childComponent.FullName}>(\"{childComponent.ID}\");");
+                if (definitionChild)
+                {
+                    var accessor = isEntity ? "GetEntityByID" : "GetDrawableByID";
+                    Writer.AddLine($"var {variableName} = {collection}.{accessor}<{childComponent.FullName}>(({parentExpression} as TypeOEngine.Typedeaf.Core.Engine.Interfaces.IHasParent).FullParentPath + {parentExpression}.ID + \"/{childComponent.ID}\");");
+                }
+                else
+                {
+                    Writer.AddLine($"var {variableName} = {collection}.Create<{childComponent.FullName}>(\"{childComponent.ID}\");");
+                }
+
                 foreach (var property in childComponent.Properties)
                 {
-                    bool shouldWrite = true;
-                    if(childComponent.OveriddenProperties.Find(op => op.Name == property.Name && object.Equals(op.Value, property.Value)) != null)
-                    {
-                        shouldWrite = false;
-                    }
-                    if(shouldWrite)
+                    if (childComponent.HasPropertyOverridesFor(property.Name))
                     {
                         AddPropertyCode(property, $"{variableName}.");
                     }

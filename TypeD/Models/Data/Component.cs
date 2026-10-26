@@ -107,6 +107,42 @@ namespace TypeD.Models.Data
         public List<Property> OveriddenProperties { get; set; }
 
         /// <summary>
+        /// Gets whether any property differs from its value in the current component context.
+        /// </summary>
+        public bool HasPropertyOverrides
+        {
+            get
+            {
+                return Properties.Any(property => HasPropertyOverridesFor(property.Name));
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the named property differs from its value in the current component context.
+        /// </summary>
+        public bool HasPropertyOverridesFor(string propertyName)
+        {
+            var property = Properties.FirstOrDefault(p => p.Name == propertyName);
+            if (property == null)
+                return false;
+
+            var original = OveriddenProperties.FirstOrDefault(p => p.Name == propertyName);
+            return original == null || !object.Equals(original.Value, property.Value);
+        }
+
+        /// <summary>
+        /// Gets whether this component or any of its children has changes to persist.
+        /// </summary>
+        public bool HasChanges
+        {
+            get
+            {
+                return HasPropertyOverrides || Children.Any(child =>
+                    !DefinitionChildren.Contains(child) || child.HasChanges);
+            }
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Component"/> class.
         /// </summary>
         /// <remarks>This constructor initializes the <see cref="Interfaces"/>, <see cref="Children"/>, and <see cref="Properties"/>

@@ -52,7 +52,7 @@ namespace TypeD.Models.Data.SaveContexts
                         TemplateClass = saveComponent.Template.GetType().FullName,
                         Children = saveComponent.Children.Select(CreateChildDTO).ToList(),
                         Properties = saveComponent.Properties
-                            .Where(p => p.Name != "ID" && !object.Equals(saveComponent.OveriddenProperties.FirstOrDefault(d => d.Name == p.Name)?.Value, p.Value))
+                            .Where(p => p.Name != "ID" && saveComponent.HasPropertyOverridesFor(p.Name))
                             .Select(p => new PropertyDTO
                             {
                                 Name = p.Name,
@@ -113,16 +113,17 @@ namespace TypeD.Models.Data.SaveContexts
         {
             return new ComponentChildDTO
             {
+                ID = component.ID,
                 FullName = component.FullName,
                 Properties = component.Properties
-                    .Where(p => !object.Equals(component.OveriddenProperties.FirstOrDefault(d => d.Name == p.Name)?.Value, p.Value))
+                    .Where(p => component.HasPropertyOverridesFor(p.Name))
                     .Select(p => new PropertyDTO
                     {
                         Name = p.Name,
                         Value = p.Value
                     }).ToList(),
                 Children = component.Children
-                    .Where(child => !component.DefinitionChildren.Contains(child))
+                    .Where(child => !component.DefinitionChildren.Contains(child) || child.HasChanges)
                     .Select(CreateChildDTO)
                     .ToList()
             };
