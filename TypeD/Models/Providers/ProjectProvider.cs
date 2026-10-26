@@ -22,6 +22,7 @@ namespace TypeD.Models.Providers
 
         // Providers
         IModuleProvider ModuleProvider { get; set; }
+        IComponentProvider ComponentProvider { get; set; }
 
         // Constructors
         public ProjectProvider() { }
@@ -37,6 +38,7 @@ namespace TypeD.Models.Providers
             RestoreModel = ResourceModel.Get<IRestoreModel>();
 
             ModuleProvider = ResourceModel.Get<IModuleProvider>();
+            ComponentProvider = ResourceModel.Get<IComponentProvider>();
         }
 
         // Functions
@@ -101,7 +103,7 @@ namespace TypeD.Models.Providers
             project = await Load(project.ProjectFilePath, (loadProgress) =>
             {
                 progress(40 + (int)(35 * (loadProgress / 100f)));
-            });
+            }, false);
             
             progress(75);
 
@@ -116,7 +118,7 @@ namespace TypeD.Models.Providers
             return project;
         }
 
-        public async Task<Project> Load(string projectFilePath, Action<int> progress)
+        public async Task<Project> Load(string projectFilePath, Action<int> progress, bool regenerateComponentCode = true)
         {
             if (!projectFilePath.EndsWith(".typeo")) return null;
 
@@ -143,6 +145,25 @@ namespace TypeD.Models.Providers
             ProjectModel.BuildComponentTree(project);
 
             await RestoreModel.Restore(project);
+
+            if (regenerateComponentCode)
+            {
+                ProjectModel.StopWatching(project);
+                try
+                {
+                    foreach (var component in ComponentProvider.ListAll(project))
+                    {
+                        component.Template.Init();
+                        ProjectModel.InitAndSaveCode(project, component.Template.Code);
+                    }
+
+                    await SaveModel.Save(project);
+                }
+                finally
+                {
+                    ProjectModel.StartWatching(project);
+                }
+            }
 
             progress(100);
             return project;
