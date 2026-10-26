@@ -25,6 +25,7 @@ namespace TypeD
                 new ComponentModel(),
                 new SettingModel(),
                 new PanelModel(),
+                new EditorCommandRegistry(),
             // Providers
                 new RecentProvider(),
                 new ModuleProvider(),
