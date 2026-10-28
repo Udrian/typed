@@ -23,6 +23,8 @@ namespace TypeD.Models.Interfaces
         /// <param name="child">The child component to add to the parent. Cannot be <see langword="null"/>.</param>
         public void Add(Project project, Component parent, Component child);
 
+        public void AddExisting(Project project, Component parent, Component child);
+
         /// <summary>
         /// Removes the specified child component from its parent within the given project.
         /// </summary>

@@ -56,6 +56,8 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="component">The component to delete from the project. Cannot be <see langword="null"/>.</param>
         public void Delete(Project project, Component component);
 
+        public void Restore(Project project, Component component);
+
         /// <summary>
         /// Renames the specified component within the given project to the provided class name.
         /// </summary>

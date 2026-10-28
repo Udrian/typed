@@ -36,13 +36,21 @@ namespace TypeD.Models
         public void Add(Project project, Component parent, Component child)
         {
             var childInstance = ComponentProvider.CreateInstance(project, child);
-            parent.Children.Add(childInstance);
-            childInstance.ParentComponent = parent;
+            AddExisting(project, parent, childInstance);
+        }
+
+        public void AddExisting(Project project, Component parent, Component child)
+        {
+            if (child.ParentComponent != null)
+                throw new InvalidOperationException("The component already belongs to a parent.");
+
+            parent.Children.Add(child);
+            child.ParentComponent = parent;
             var rootComponent = GetRootComponent(parent);
             ComponentProvider.Save(project, rootComponent);
             ProjectModel.SaveCode(rootComponent.Template.Code);
 
-            HookModel.Shoot(new ComponentAddedHook() { Parent = parent, Child = childInstance });
+            HookModel.Shoot(new ComponentAddedHook() { Parent = parent, Child = child });
         }
 
         public void Remove(Project project, Component child)

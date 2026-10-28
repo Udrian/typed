@@ -69,6 +69,8 @@ namespace TypeD.Models.Providers
         public void Save(Project project, Component component)
         {
             var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
+            componentSaveContext.DeletedComponents.RemoveAll(c => c.FullName == component.FullName);
+            componentSaveContext.Components.RemoveAll(c => c.FullName == component.FullName);
             componentSaveContext.Components.Add(component);
             SaveModel.AddSave<ComponentSaveContext>();
         }
@@ -287,10 +289,36 @@ namespace TypeD.Models.Providers
         public void Delete(Project project, Component component)
         {
             var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
-            componentSaveContext.Components.RemoveAll(c => c.FullName == component.FullName);
-            componentSaveContext.DeletedComponents.Add(component);
+            var wasPendingCreate = componentSaveContext.Components.RemoveAll(c => c.FullName == component.FullName) > 0;
+            componentSaveContext.RenamedComponents.RemoveAll(c => ReferenceEquals(c.Item2, component));
+            componentSaveContext.DeletedComponents.RemoveAll(c => c.FullName == component.FullName);
+            if (wasPendingCreate && !Exists(project, component))
+            {
+                if (SaveModel.SaveContextExists<CodeSaveContext>())
+                {
+                    var codeSaveContext = SaveModel.GetSaveContext<CodeSaveContext>();
+                    codeSaveContext.Codes.RemoveAll(code =>
+                        code.FilePath() == component.Template.Code.FilePath());
+                }
+            }
+            else
+            {
+                componentSaveContext.DeletedComponents.Add(component);
+            }
             SaveModel.AddSave<ComponentSaveContext>();
 
+            ProjectModel.BuildComponentTree(project);
+        }
+
+        public void Restore(Project project, Component component)
+        {
+            var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
+            componentSaveContext.DeletedComponents.RemoveAll(c => c.FullName == component.FullName);
+            if (!componentSaveContext.Components.Any(c => c.FullName == component.FullName))
+                componentSaveContext.Components.Add(component);
+
+            ProjectModel.InitAndSaveCode(project, component.Template.Code);
+            SaveModel.AddSave<ComponentSaveContext>();
             ProjectModel.BuildComponentTree(project);
         }
 
@@ -300,12 +328,29 @@ namespace TypeD.Models.Providers
             component.ClassName = newClassName;
 
             var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
-            componentSaveContext.RenamedComponents.Add(new Tuple<string, Component>(oldClassname, component));
-            SaveModel.AddSave<ComponentSaveContext>();
+            var renameIndex = componentSaveContext.RenamedComponents.FindIndex(rename =>
+                ReferenceEquals(rename.Item2, component));
+            if (renameIndex >= 0)
+            {
+                var originalClassName = componentSaveContext.RenamedComponents[renameIndex].Item1;
+                if (originalClassName == newClassName)
+                    componentSaveContext.RenamedComponents.RemoveAt(renameIndex);
+                else
+                    componentSaveContext.RenamedComponents[renameIndex] =
+                        new Tuple<string, Component>(originalClassName, component);
+            }
+            else if (oldClassname != newClassName)
+            {
+                componentSaveContext.RenamedComponents.Add(new Tuple<string, Component>(oldClassname, component));
+            }
+            if (oldClassname != newClassName)
+                SaveModel.AddSave<ComponentSaveContext>();
 
-            Save(project, component);
+            if (oldClassname != newClassName)
+                Save(project, component);
 
-            ProjectModel.BuildComponentTree(project);
+            if (oldClassname != newClassName)
+                ProjectModel.BuildComponentTree(project);
         }
 
         public bool Exists(Project project, Component component)
