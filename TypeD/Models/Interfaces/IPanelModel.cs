@@ -1,4 +1,5 @@
-﻿using TypeD.Models.Data;
+﻿using Dock.Model.Core;
+using TypeD.Models.Data;
 using TypeD.View;
 using TypeD.View.Viewer;
 
@@ -8,7 +9,8 @@ namespace TypeD.Models.Interfaces
     {
         public void OpenPanel(string id);
         public void ClosePanel(string id);
-        public void AttachPanel(string id, string title, Avalonia.Controls.Control view);
+        public void SetPanelStatusWithoutNotify(string id, bool open);
+        public void AttachPanel(string id, string title, Avalonia.Controls.Control view, Alignment defaultDockPosition = Alignment.Unset);
         public void DetachPanel(string id);
         public List<Panel> GetPanels();
         public void AddViewer<T>() where T : IViewer, new();

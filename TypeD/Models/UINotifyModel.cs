@@ -17,13 +17,11 @@ namespace TypeD.Models
 
         // Data
         private Dictionary<string, UINotify> Attachments { get; set; }
-        private Queue<Tuple<string, object>> DelayedAddTo { get; set; }
 
         // Constructors
         public UINotifyModel()
         {
             Attachments = new Dictionary<string, UINotify>();
-            DelayedAddTo = new Queue<Tuple<string, object>>();
         }
 
         public void Init(IResourceModel resourceModel)
@@ -39,17 +37,6 @@ namespace TypeD.Models
                 PropertyUpdateNotification = notifyEvent,
                 ElementAddNotification = addEvent
             });
-
-           if(addEvent != null && DelayedAddTo.Count > 0)
-            {
-                var queue = new Queue<Tuple<string, object>>(DelayedAddTo);
-                DelayedAddTo.Clear();
-                while(queue.Count > 0)
-                {
-                    var addTo = queue.Dequeue();
-                    AddTo(addTo.Item1, addTo.Item2);
-                }
-            }
         }
 
         public void Attach<T>(Action<string> notifyEvent, Action<object, bool> addEvent = null) where T : ViewModelBase
@@ -93,8 +80,6 @@ namespace TypeD.Models
             var ui = GetUINotify(key);
             if (ui != null)
                 ui.ElementAddNotification.Invoke(element, false);
-            else
-                DelayedAddTo.Enqueue(new Tuple<string, object>(key, element));
         }
 
         public void AddTo<T>(object element) where T : ViewModelBase

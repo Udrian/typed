@@ -1,5 +1,6 @@
-﻿using TypeD.Models.Data;
-using TypeD.Models.Data.SettingContexts;
+﻿using Dock.Model.Core;
+using TypeD.Models.Data;
+using TypeD.Models.Data.Hooks;
 using TypeD.Models.Interfaces;
 using TypeD.View;
 using TypeD.View.Viewer;
@@ -9,8 +10,7 @@ namespace TypeD.Models
     internal class PanelModel : IPanelModel
     {
         // Models
-        IUINotifyModel UINotifyModel { get; set; }
-        ISettingModel SettingModel { get; set; }
+        IHookModel HookModel { get; set; }
 
         // Data
         Dictionary<string, Panel> Panels { get; set; }
@@ -25,8 +25,7 @@ namespace TypeD.Models
 
         public void Init(IResourceModel resourceModel)
         {
-            UINotifyModel = resourceModel.Get<IUINotifyModel>();
-            SettingModel = resourceModel.Get<ISettingModel>();
+            HookModel = resourceModel.Get<IHookModel>();
         }
 
         // Functions
@@ -35,22 +34,12 @@ namespace TypeD.Models
             if (!Panels.ContainsKey(id))
                 return;
             var panel = Panels[id];
-            var setting = SettingModel.GetContext<MainWindowSettingContext>(SettingLevel.Local);
-            var panelSetting = setting.Panels.Value.Find(p => p.ID == panel.ID);
-            if (panelSetting == null)
-            {
-                panelSetting = new MainWindowSettingContext.Panel(panel.ID);
-                setting.Panels.Value.Add(panelSetting);
-            }
 
             if (panel.Open)
                 return;
 
             panel.Open = true;
-            panelSetting.Open = true;
-            SettingModel.SetContext(setting);
-
-            UINotifyModel.AddTo("MainWindow", panel);
+            HookModel.Shoot(new PanelStatusChangedHook() { Panel = panel, Status = PanelStatusChangedHook.PanelStatus.Opened });
         }
 
         public void ClosePanel(string id)
@@ -58,43 +47,30 @@ namespace TypeD.Models
             if (!Panels.ContainsKey(id))
                 return;
             var panel = Panels[id];
-            var setting = SettingModel.GetContext<MainWindowSettingContext>(SettingLevel.Local);
-            var panelSetting = setting.Panels.Value.Find(p => p.ID == panel.ID);
-            if (panelSetting == null)
-            {
-                panelSetting = new MainWindowSettingContext.Panel(panel.ID);
-                setting.Panels.Value.Add(panelSetting);
-            }
 
             if (!panel.Open)
                 return;
 
             panel.Open = false;
-            panelSetting.Open = false;
-            SettingModel.SetContext(setting);
-
-            UINotifyModel.RemoveFrom("MainWindow", panel);
+            HookModel.Shoot(new PanelStatusChangedHook() { Panel = panel, Status = PanelStatusChangedHook.PanelStatus.Closed });
         }
 
-        public void AttachPanel(string id, string title, Avalonia.Controls.Control view)
+        public void SetPanelStatusWithoutNotify(string id, bool open)
+        {
+            if (!Panels.ContainsKey(id))
+                return;
+            var panel = Panels[id];
+            panel.Open = open;
+        }
+
+        public void AttachPanel(string id, string title, Avalonia.Controls.Control view, Alignment defaultDockPosition = Alignment.Unset)
         {
             if (Panels.ContainsKey(id))
                 return;
-            var panel = new Panel(id, title, view);
+
+            var panel = new Panel(id, title, view, defaultDockPosition);
             Panels.Add(panel.ID, panel);
-
-            var setting = SettingModel.GetContext<MainWindowSettingContext>(SettingLevel.Local);
-            if(!setting.Panels.Value.Exists(p => p.ID == panel.ID))
-            {
-                setting.Panels.Value.Add(new MainWindowSettingContext.Panel(panel.ID));
-                SettingModel.SetContext(setting);
-            }
-            else if(setting.Panels.Value.Find(p => p.ID == panel.ID).Open)
-            {
-                OpenPanel(id);
-            }
-
-            UINotifyModel.Notify("MainWindow", "Panels");
+            HookModel.Shoot(new PanelStatusChangedHook() { Panel = panel, Status = PanelStatusChangedHook.PanelStatus.Attached });
         }
 
         public void DetachPanel(string id)
@@ -102,13 +78,9 @@ namespace TypeD.Models
             if (!Panels.ContainsKey(id))
                 return;
 
-            var setting = SettingModel.GetContext<MainWindowSettingContext>(SettingLevel.Local);
-            if (setting.Panels.Value.Exists(p => p.ID == id) && setting.Panels.Value.Find(p => p.ID == id).Open)
-                ClosePanel(id);
-
+            var panel = Panels[id];
             Panels.Remove(id);
-
-            UINotifyModel.Notify("MainWindow", "Panels");
+            HookModel.Shoot(new PanelStatusChangedHook() { Panel = panel, Status = PanelStatusChangedHook.PanelStatus.Detached });
         }
 
         public List<Panel> GetPanels()
