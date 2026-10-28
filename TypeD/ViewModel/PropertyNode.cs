@@ -30,7 +30,7 @@ namespace TypeD.ViewModel
 
         public Type Type { get => Property.Type; }
         public string Description { get => Property.Description; }
-        public bool ReadOnly { get => Property.ReadOnly; }
+        public bool ReadOnly { get => Property.ReadOnly || Component.ReadOnly; }
         public Action<PropertyNode, object> ValueChanged;
 
         public PropertyNode(Component component, Property property, Action<PropertyNode, object> value_changed)

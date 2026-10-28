@@ -107,6 +107,11 @@ namespace TypeD.Models.Data
         public List<Property> OveriddenProperties { get; set; }
 
         /// <summary>
+        /// Gets or sets whether the component definition can't be modified when opened on its own. Base type components
+        /// are read only, but instances of them added as children to other components are not.
+        /// </summary>
+        public bool ReadOnly { get; set; }
+        /// <summary>
         /// Gets whether any property differs from its value in the current component context.
         /// </summary>
         public bool HasPropertyOverrides

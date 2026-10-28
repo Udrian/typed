@@ -418,6 +418,7 @@ namespace TypeD.Models.Providers
             }).ToList();
             component.OveriddenProperties = component.Properties.Select(property => new Property(property)).ToList();
 
+            component.ReadOnly = true;
             BaseTypeComponents.Add(component);
         }
         public void RemoveBaseTypeComponent(Component component)
