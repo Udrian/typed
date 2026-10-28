@@ -34,9 +34,11 @@ namespace TypeD.Models
                 return null;
             if (Definitions.TryGetValue(type, out var definition))
                 return definition;
-            // A definition registered for System.Enum handles every enum type without its own definition.
-            if (type.IsEnum && Definitions.TryGetValue(typeof(Enum), out definition))
-                return definition;
+            for (var baseType = type.BaseType; baseType != null; baseType = baseType.BaseType)
+            {
+                if (Definitions.TryGetValue(baseType, out definition))
+                    return definition;
+            }
             return null;
         }
 

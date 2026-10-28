@@ -19,6 +19,12 @@ namespace TypeD.Models.Data
         Type Type { get; }
 
         /// <summary>
+        /// The type of the value stored in <see cref="Property.Value"/> and written to JSON. Differs from
+        /// <see cref="Type"/> when the property is stored as a reference, e.g. a content path for a Texture property.
+        /// </summary>
+        Type ValueType { get; }
+
+        /// <summary>
         /// Converter used when saving and loading values of <see cref="Type"/> as JSON, or <see langword="null"/> to
         /// use the default System.Text.Json handling.
         /// </summary>
@@ -48,7 +54,9 @@ namespace TypeD.Models.Data
     /// <typeparam name="TNode">The view model type. Needs a constructor taking (Component, Property, Action&lt;PropertyNode, object&gt;).</typeparam>
     public abstract class PropertyDefinition<TValue, TNode> : IPropertyDefinition where TNode : PropertyNode
     {
-        public Type Type => typeof(TValue);
+        public virtual Type Type => typeof(TValue);
+
+        public Type ValueType => typeof(TValue);
 
         public virtual JsonConverter JsonConverter => null;
 

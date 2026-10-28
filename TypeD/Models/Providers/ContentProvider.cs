@@ -7,6 +7,7 @@ namespace TypeD.Models.Providers
     internal class ContentProvider : IContentProvider
     {
         private Dictionary<string, Type> SupportedContentTypes { get; set; }
+        private Dictionary<string, ContentTypeAssociation> Associations { get; } = new();
 
         public ContentProvider()
         {
@@ -44,9 +45,31 @@ namespace TypeD.Models.Providers
             SupportedContentTypes.Add(extension, typeof(C));
         }
 
+        public void AddSupportedContentType<C, TBase, TImplementation>(string extension) where C : Content where TImplementation : TBase
+        {
+            AddSupportedContentType<C>(extension);
+            Associations[extension] = new ContentTypeAssociation(extension, typeof(C), typeof(TBase), typeof(TImplementation));
+        }
+
         public void RemoveSupportedContentType<C>(string extension) where C : Content
         {
             SupportedContentTypes.Remove(extension);
+            Associations.Remove(extension);
+        }
+
+        public IReadOnlyList<ContentTypeAssociation> ListAssociations()
+        {
+            return Associations.Values.ToList();
+        }
+
+        public ContentTypeAssociation GetAssociation(string extension)
+        {
+            return Associations.TryGetValue(extension, out var association) ? association : null;
+        }
+
+        public IReadOnlyList<ContentTypeAssociation> GetAssociationsForEngineType(Type engineBaseType)
+        {
+            return Associations.Values.Where(a => engineBaseType.IsAssignableFrom(a.EngineBaseType)).ToList();
         }
     }
 }

@@ -20,7 +20,7 @@ namespace TypeD.Models.Providers
         ISaveModel SaveModel { get; set; }
         IComponentModel ComponentModel { get; set; }
         IHookModel HookModel { get; set; }
-
+        IPropertyModel PropertyModel { get; set; }
         // Data
         List<Component> BaseTypeComponents { get; set; }
 
@@ -38,6 +38,13 @@ namespace TypeD.Models.Providers
             SaveModel = ResourceModel.Get<ISaveModel>();
             ComponentModel = ResourceModel.Get<IComponentModel>();
             HookModel = ResourceModel.Get<IHookModel>();
+            PropertyModel = ResourceModel.Get<IPropertyModel>();
+        }
+
+        private Type GetStoredValueType(Type propertyType)
+        {
+            var definition = PropertyModel?.Get(propertyType);
+            return definition != null && definition.ValueType != definition.Type ? definition.ValueType : propertyType;
         }
 
         // Functions
@@ -153,8 +160,8 @@ namespace TypeD.Models.Providers
                 var newProp = component.Properties.FirstOrDefault(p => p.Name == d.Name);
                 if (newProp != null && newProp.Value is JsonElement)
                 {
-                    var val = ((JsonElement)newProp.Value).Deserialize(d.Type, JSON.CreateOptions(web: true));
-                    if(!d.Value.Equals(newProp.Value))
+                    var val = ((JsonElement)newProp.Value).Deserialize(GetStoredValueType(d.Type), JSON.CreateOptions(web: true));
+                    if(!Equals(d.Value, newProp.Value))
                     {
                         d.Value = val;
                     }
@@ -202,7 +209,7 @@ namespace TypeD.Models.Providers
                 var propertyOverride = propertyOverrides.FirstOrDefault(p => p.Name == property.Name);
                 if (propertyOverride?.Value is JsonElement jsonValue)
                 {
-                    property.Value = jsonValue.Deserialize(property.Type, JSON.CreateOptions(web: true));
+                    property.Value = jsonValue.Deserialize(GetStoredValueType(property.Type), JSON.CreateOptions(web: true));
                 }
                 else if (propertyOverride != null)
                 {
@@ -408,8 +415,8 @@ namespace TypeD.Models.Providers
                 var newProp = component.Properties.FirstOrDefault(p => p.Name == d.Name);
                 if (newProp != null && newProp.Value is JsonElement)
                 {
-                    var val = ((JsonElement)newProp.Value).Deserialize(d.Type, JSON.CreateOptions(web: true));
-                    if (!d.Value.Equals(newProp.Value))
+                    var val = ((JsonElement)newProp.Value).Deserialize(GetStoredValueType(d.Type), JSON.CreateOptions(web: true));
+                    if (!Equals(d.Value, newProp.Value))
                     {
                         d.Value = val;
                     }

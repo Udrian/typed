@@ -47,26 +47,37 @@ namespace TypeD.Models.Data
             ? CurrentHistoryBrush
             : IsUndone ? UndoneHistoryBrush : AppliedHistoryBrush;
 
-        private readonly Action _undoAction;
-        private readonly Action _redoAction;
+        private Action UndoAction;
+        private Action RedoAction;
 
         public CommandHistoryEntry(string commandName, string context, Action undoAction, Action redoAction)
         {
             CommandName = commandName;
             Context = context;
-            _undoAction = undoAction ?? throw new ArgumentNullException(nameof(undoAction));
-            _redoAction = redoAction ?? throw new ArgumentNullException(nameof(redoAction));
+            UndoAction = undoAction ?? throw new ArgumentNullException(nameof(undoAction));
+            RedoAction = redoAction ?? throw new ArgumentNullException(nameof(redoAction));
             Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+
+        /// <summary>
+        /// Adds work that happened after the entry was recorded, so undo and redo cover it as well.
+        /// </summary>
+        public void Amend(Action undoAction, Action redoAction)
+        {
+            var previousUndo = UndoAction;
+            var previousRedo = RedoAction;
+            UndoAction = () => { undoAction(); previousUndo(); };
+            RedoAction = () => { previousRedo(); redoAction(); };
         }
 
         public void Undo()
         {
-            _undoAction();
+            UndoAction();
         }
 
         public void Redo()
         {
-            _redoAction();
+            RedoAction();
         }
 
         public void SetHistoryState(bool isCurrent, bool isUndone)
