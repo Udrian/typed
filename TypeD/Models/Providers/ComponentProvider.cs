@@ -401,6 +401,23 @@ namespace TypeD.Models.Providers
 
         public void AddBaseTypeComponent(Component component)
         {
+            var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(component));
+            var defaultProperties = extractPropertiesHook.Properties;
+            component.Properties = defaultProperties.Select((d) =>
+            {
+                var newProp = component.Properties.FirstOrDefault(p => p.Name == d.Name);
+                if (newProp != null && newProp.Value is JsonElement)
+                {
+                    var val = ((JsonElement)newProp.Value).Deserialize(d.Type, JSON.CreateOptions(web: true));
+                    if (!d.Value.Equals(newProp.Value))
+                    {
+                        d.Value = val;
+                    }
+                }
+                return d;
+            }).ToList();
+            component.OveriddenProperties = component.Properties.Select(property => new Property(property)).ToList();
+
             BaseTypeComponents.Add(component);
         }
         public void RemoveBaseTypeComponent(Component component)
