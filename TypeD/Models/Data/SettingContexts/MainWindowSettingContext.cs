@@ -40,6 +40,7 @@ namespace TypeD.Models.Data.SettingContexts
         public Setting<bool> Fullscreen { get; set; } = new Setting<bool>(true);
         public Setting<string> ExternalEditor { get; set; } = new Setting<string>("code {path}");
         public Setting<string> DockLayout { get; set; } = new Setting<string>(string.Empty);
+        public Setting<string> ToolbarGroupOrder { get; set; } = new Setting<string>(string.Empty);
         public Setting<string> ViewerType { get; set; } = new Setting<string>("TypeDTK.View.Viewer.TKViewer"/*"TypeDCore.View.Viewer.ConsoleViewer"*/); //TODO: Make a better solution than this.
         public Setting<ShortcutBindingOverrides> ShortcutOverrides { get; set; } = new Setting<ShortcutBindingOverrides>(new ShortcutBindingOverrides());
 
