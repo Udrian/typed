@@ -52,9 +52,7 @@ namespace TypeD.Commands
         // Functions
         public override bool CanExecute(object parameter)
         {
-            if (parameter is T)
-                return CanExecute(parameter as T);
-            return true;
+            return parameter is T typedParameter && CanExecute(typedParameter);
         }
 
         public virtual bool CanExecute(T parameter)

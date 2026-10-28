@@ -1,3 +1,5 @@
+using TypeD.Commands;
+
 namespace TypeD.Models.Data
 {
     public static class EditorShortcut
@@ -27,6 +29,7 @@ namespace TypeD.Models.Data
         internal Action<object> ExecuteAction { get; }
         internal Predicate<object> CanExecuteAction { get; }
         internal Func<object> ParameterProvider { get; }
+        internal CustomCommand RegisteredCustomCommand { get; }
 
         internal EditorCommand(
             string id,
@@ -36,7 +39,8 @@ namespace TypeD.Models.Data
             string shortcut,
             Action<object> execute,
             Predicate<object> canExecute,
-            Func<object> parameterProvider)
+            Func<object> parameterProvider,
+            CustomCommand registeredCustomCommand = null)
         {
             Id = id;
             Name = name;
@@ -47,6 +51,7 @@ namespace TypeD.Models.Data
             ExecuteAction = execute;
             CanExecuteAction = canExecute;
             ParameterProvider = parameterProvider;
+            RegisteredCustomCommand = registeredCustomCommand;
         }
 
         public bool CanExecute(object parameter = null)

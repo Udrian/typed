@@ -1,3 +1,4 @@
+using TypeD.Commands;
 using TypeD.Models.Data;
 using TypeD.Models.Data.SettingContexts;
 using TypeD.Models.Interfaces;
@@ -66,6 +67,53 @@ namespace TypeD.Models
             Predicate<object> canExecute = null,
             Func<object> parameterProvider = null)
         {
+            return Register(
+                id,
+                name,
+                description,
+                scope,
+                defaultShortcut,
+                execute,
+                canExecute,
+                parameterProvider,
+                null);
+        }
+
+        public IDisposable Register(
+            string id,
+            string name,
+            string description,
+            string scope,
+            string defaultShortcut,
+            CustomCommand customCommand,
+            Func<object> parameterProvider = null)
+        {
+            if (customCommand == null)
+                throw new ArgumentNullException(nameof(customCommand));
+
+            return Register(
+                id,
+                name,
+                description,
+                scope,
+                defaultShortcut,
+                customCommand.Execute,
+                customCommand.CanExecute,
+                parameterProvider,
+                customCommand);
+        }
+
+        private IDisposable Register(
+            string id,
+            string name,
+            string description,
+            string scope,
+            string defaultShortcut,
+            Action<object> execute,
+            Predicate<object> canExecute,
+            Func<object> parameterProvider,
+            CustomCommand registeredCustomCommand)
+        {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("A command ID is required.", nameof(id));
             if (execute == null)
@@ -80,7 +128,8 @@ namespace TypeD.Models
                 defaultShortcut ?? string.Empty,
                 execute,
                 canExecute,
-                parameterProvider);
+                parameterProvider,
+                registeredCustomCommand);
 
             var shortcutOverrides = SettingModel.GetContext<MainWindowSettingContext>()?.ShortcutOverrides.Value;
             if (shortcutOverrides != null && shortcutOverrides.TryGetValue(id, out var shortcut))
@@ -90,6 +139,16 @@ namespace TypeD.Models
                 RegisteredCommands[id] = new RegisteredCommand(command, token);
 
             return new Registration(this, id, token);
+        }
+
+        public T GetCommand<T>(string id) where T : CustomCommand
+        {
+            lock (SyncRoot)
+            {
+                if (RegisteredCommands.TryGetValue(id, out var registration))
+                    return registration.Command.RegisteredCustomCommand as T;
+            }
+            return null;
         }
 
         public bool Execute(string id, object parameter = null)
@@ -117,20 +176,30 @@ namespace TypeD.Models
 
             var normalizedScope = string.IsNullOrWhiteSpace(scope) ? "global" : scope;
             EditorCommand command;
+            object resolvedParameter = null;
             lock (SyncRoot)
             {
-                command = RegisteredCommands.Values
-                    .Select(entry => entry.Command)
-                    .FirstOrDefault(candidate =>
-                        candidate.Scope.Equals(normalizedScope, StringComparison.OrdinalIgnoreCase) &&
-                        NormalizeShortcut(candidate.Shortcut) == normalizedShortcut &&
-                        candidate.CanExecute(parameter));
+                command = null;
+                foreach (var candidate in RegisteredCommands.Values.Select(entry => entry.Command))
+                {
+                    if (!candidate.Scope.Equals(normalizedScope, StringComparison.OrdinalIgnoreCase) ||
+                        NormalizeShortcut(candidate.Shortcut) != normalizedShortcut)
+                        continue;
+
+                    var candidateParameter = candidate.ResolveParameter(parameter);
+                    if (!candidate.CanExecute(candidateParameter))
+                        continue;
+
+                    command = candidate;
+                    resolvedParameter = candidateParameter;
+                    break;
+                }
             }
 
             if (command == null)
                 return false;
 
-            command.ExecuteAction(command.ResolveParameter(parameter));
+            command.ExecuteAction(resolvedParameter);
             return true;
         }
 
