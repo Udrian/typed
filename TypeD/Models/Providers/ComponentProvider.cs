@@ -153,7 +153,7 @@ namespace TypeD.Models.Providers
                 var newProp = component.Properties.FirstOrDefault(p => p.Name == d.Name);
                 if (newProp != null && newProp.Value is JsonElement)
                 {
-                    var val = ((JsonElement)newProp.Value).Deserialize(d.Type, JsonSerializerOptions.Web);
+                    var val = ((JsonElement)newProp.Value).Deserialize(d.Type, JSON.CreateOptions(web: true));
                     if(!d.Value.Equals(newProp.Value))
                     {
                         d.Value = val;
@@ -202,7 +202,7 @@ namespace TypeD.Models.Providers
                 var propertyOverride = propertyOverrides.FirstOrDefault(p => p.Name == property.Name);
                 if (propertyOverride?.Value is JsonElement jsonValue)
                 {
-                    property.Value = jsonValue.Deserialize(property.Type, JsonSerializerOptions.Web);
+                    property.Value = jsonValue.Deserialize(property.Type, JSON.CreateOptions(web: true));
                 }
                 else if (propertyOverride != null)
                 {

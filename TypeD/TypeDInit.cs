@@ -24,6 +24,7 @@ namespace TypeD
                 new RestoreModel(),
                 new ComponentModel(),
                 new SettingModel(),
+                new PropertyModel(),
                 new PanelModel(),
                 new EditorCommandRegistry(),
             // Providers

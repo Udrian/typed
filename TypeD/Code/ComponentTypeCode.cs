@@ -1,4 +1,6 @@
 ﻿using TypeD.Models.Data;
+using TypeD.Models.Interfaces;
+using TypeD.ViewModel;
 
 namespace TypeD.Code
 {
@@ -114,16 +116,20 @@ namespace TypeD.Code
             }
         }
 
-        //TODO: Should redo this in a more modular way.
         protected void AddPropertyCode(TypeD.Models.Data.Property property, string prepend = "")
         {
             if (string.IsNullOrEmpty(property.Name) || property.ReadOnly)
                 return;
 
             var valuestring = "";
+            var definition = ViewModelBase.ResourceModel?.Get<IPropertyModel>()?.Get(property.Type);
             if (property.Value == null)
             {
                 valuestring = "null";
+            }
+            else if (definition != null)
+            {
+                valuestring = definition.ToCode(property.Value);
             }
             else if (property.Type == typeof(bool))
             {
