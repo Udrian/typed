@@ -32,7 +32,12 @@ namespace TypeD.Models
         {
             if (type == null)
                 return null;
-            return Definitions.TryGetValue(type, out var definition) ? definition : null;
+            if (Definitions.TryGetValue(type, out var definition))
+                return definition;
+            // A definition registered for System.Enum handles every enum type without its own definition.
+            if (type.IsEnum && Definitions.TryGetValue(typeof(Enum), out definition))
+                return definition;
+            return null;
         }
 
         public IReadOnlyList<IPropertyDefinition> List()
