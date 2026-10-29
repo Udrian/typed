@@ -87,13 +87,5 @@ namespace TypeD.Models.Interfaces
         /// <param name="type">The type to compare against.</param>
         /// <returns><see langword="true"/> if the specified component is of the given type; otherwise, <see langword="false"/>.</returns>
         public bool IsOfType(Component component, Type type);
-
-        /// <summary>
-        /// Retrieves the base type of the specified <see cref="Component"/>.
-        /// </summary>
-        /// <param name="component">The <see cref="Component"/> whose base type is to be determined. Cannot be <see langword="null"/>.</param>
-        /// <returns>The <see cref="Type"/> representing the base type of the specified <see cref="Component"/>.
-        /// Returns <see langword="null"/> if the component does not have a base type.</returns>
-        public Type GetBaseType(Component component);
     }
 }

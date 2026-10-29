@@ -18,7 +18,7 @@ namespace TypeD.Code
         /// <summary>
         /// Gets the base type of the current type.
         /// </summary>
-        public abstract Type TypeOBaseType { get; } // TODO: Remove this.
+        public abstract Type TypeOBaseType { get; }
         /// <summary>
         /// Gets a value indicating whether the current type is the base component type.
         /// </summary>
@@ -77,7 +77,7 @@ namespace TypeD.Code
                 if (definitionChild && (!child.HasChanges || child.Removed))
                     continue;
 
-                var baseTypeName = child.TypeOBaseType.FullName;
+                var baseTypeName = child.RootBaseComponent.FullName;
                 var isEntity = baseTypeName == "TypeOEngine.Typedeaf.Core.Entities.Entity";
                 var isDrawable = baseTypeName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable";
                 if (!isEntity && !isDrawable)
@@ -136,8 +136,8 @@ namespace TypeD.Code
                 if (definitionChild && !childComponent.HasChanges)
                     continue;
 
-                var isEntity = childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Entity";
-                var isDrawable = childComponent.TypeOBaseType.FullName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable";
+                var isEntity = childComponent.RootBaseComponent.FullName == "TypeOEngine.Typedeaf.Core.Entities.Entity";
+                var isDrawable = childComponent.RootBaseComponent.FullName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable";
                 if (!isEntity && !isDrawable)
                 {
                     continue;

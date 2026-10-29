@@ -164,15 +164,6 @@ namespace TypeD.Models
             return IsOfType(component.BaseInheritedComponent, type);
         }
 
-        public Type GetBaseType(Component component)
-        {
-            if(component.BaseInheritedComponent == null)
-            {
-                return GetType(component);
-            }
-            return GetBaseType(component.BaseInheritedComponent);
-        }
-
         private static Component GetRootComponent(Component component)
         {
             while (component.ParentComponent != null)

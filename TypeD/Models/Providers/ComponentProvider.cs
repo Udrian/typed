@@ -64,8 +64,6 @@ namespace TypeD.Models.Providers
             component.Properties = extractPropertiesHook.Properties;
 
             component.Template.Init();
-            //TODO: Remove TypeOBaseType
-            component.TypeOBaseType = ComponentModel.GetBaseType(component);
             ProjectModel.InitAndSaveCode(project, component.Template.Code);
 
             Save(project, component);
@@ -174,8 +172,6 @@ namespace TypeD.Models.Providers
 
             component.Template.Component = component;
 
-            //TODO: Remove TypeOBaseType
-            component.TypeOBaseType = ComponentModel.GetBaseType(component);
             return component;
         }
 
@@ -277,7 +273,6 @@ namespace TypeD.Models.Providers
                 BaseInheritedComponent = source.BaseInheritedComponent,
                 Icon = source.Icon,
                 Interfaces = new List<Type>(source.Interfaces),
-                TypeOBaseType = source.TypeOBaseType,
                 Properties = source.Properties.Select(property => new Property(property)).ToList(),
                 OveriddenProperties = (useCurrentValuesAsOverrideBaseline ? source.Properties : source.OveriddenProperties)
                     .Select(property => new Property(property)).ToList(),

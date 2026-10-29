@@ -86,9 +86,26 @@ namespace TypeD.Models.Data
         /// </summary>
         public List<Type> Interfaces { get; set; }
         /// <summary>
-        /// Gets or sets the base type of the object represented by it's coresponding instance.
+        /// Gets the component at the root of the inheritance chain, which is the engine type this component is built on.
         /// </summary>
-        public Type TypeOBaseType { get; set; } //TODO: Remove TypeOBaseType
+        public Component RootBaseComponent
+        {
+            get
+            {
+                var root = this;
+                while (root.BaseInheritedComponent != null)
+                    root = root.BaseInheritedComponent;
+                return root;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the root of the inheritance chain is the given engine type.
+        /// </summary>
+        public bool IsBasedOn(Type type)
+        {
+            return type != null && RootBaseComponent.FullName == type.FullName;
+        }
         /// <summary>
         /// Gets or sets the collection of child components associated with this component.
         /// </summary>
