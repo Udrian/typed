@@ -48,10 +48,10 @@ namespace TypeD.Models.Providers
                 Icons[extension] = icon;
         }
 
-        public void AddSupportedContentType<C, TBase, TImplementation>(string extension, string icon = null) where C : Content where TImplementation : TBase
+        public void AddSupportedContentType<C, TBase, TImplementation>(string extension, string icon = null, string defaultComponent = null, string defaultProperty = null) where C : Content where TImplementation : TBase
         {
             AddSupportedContentType<C>(extension, icon);
-            Associations[extension] = new ContentTypeAssociation(extension, typeof(C), typeof(TBase), typeof(TImplementation));
+            Associations[extension] = new ContentTypeAssociation(extension, typeof(C), typeof(TBase), typeof(TImplementation), defaultComponent, defaultProperty);
         }
 
         public void RemoveSupportedContentType<C>(string extension) where C : Content

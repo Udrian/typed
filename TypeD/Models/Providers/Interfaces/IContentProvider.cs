@@ -17,7 +17,9 @@ namespace TypeD.Models.Providers.Interfaces
         /// <typeparam name="TBase">The engine base content type, e.g. Texture.</typeparam>
         /// <typeparam name="TImplementation">The engine implementation of <typeparamref name="TBase"/>, e.g. TKTexture.</typeparam>
         /// <param name="icon">File name of the icon shown on content of this type. It must exist in an icon folder registered with <see cref="TypeD.Models.Interfaces.IIconModel.AddDefaultIconsPath"/>.</param>
-        void AddSupportedContentType<C, TBase, TImplementation>(string extension, string icon = null) where C : Content where TImplementation : TBase;
+        /// <param name="defaultComponent">Full name of the component created when content of this type is dropped in the viewer.</param>
+        /// <param name="defaultProperty">Name of the property on the default component that receives the content.</param>
+        void AddSupportedContentType<C, TBase, TImplementation>(string extension, string icon = null, string defaultComponent = null, string defaultProperty = null) where C : Content where TImplementation : TBase;
 
         void RemoveSupportedContentType<C>(string extension) where C : Content;
 
