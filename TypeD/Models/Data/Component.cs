@@ -112,6 +112,10 @@ namespace TypeD.Models.Data
         /// </summary>
         public bool ReadOnly { get; set; }
         /// <summary>
+        /// Gets or sets whether this child, inherited from the definition of its parent, has been removed from the parent instance.
+        /// </summary>
+        public bool Removed { get; set; }
+        /// <summary>
         /// Gets whether any property differs from its value in the current component context.
         /// </summary>
         public bool HasPropertyOverrides
@@ -142,7 +146,7 @@ namespace TypeD.Models.Data
         {
             get
             {
-                return HasPropertyOverrides || Children.Any(child =>
+                return Removed || HasPropertyOverrides || Children.Any(child =>
                     !DefinitionChildren.Contains(child) || child.HasChanges);
             }
         }

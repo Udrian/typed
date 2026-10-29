@@ -34,6 +34,11 @@ namespace TypeD.Models.Interfaces
         public void Remove(Project project, Component child);
 
         /// <summary>
+        /// Marks a child inherited from the definition of its parent as removed or restored without deleting it from the tree.
+        /// </summary>
+        public void SetRemoved(Project project, Component child, bool removed);
+
+        /// <summary>
         /// Retrieves the <see cref="Type"/> of the specified <see cref="Component"/>.
         /// </summary>
         /// <param name="component">The <see cref="Component"/> whose type is to be retrieved. Cannot be <see langword="null"/>.</param>

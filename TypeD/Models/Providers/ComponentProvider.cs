@@ -196,6 +196,7 @@ namespace TypeD.Models.Providers
             {
                 child.ID = dto.ID;
             }
+            child.Removed = dto.Removed;
 
             var propertyOverrides = dto.Properties ?? new List<PropertyDTO>();
             child.Properties = child.Properties.Select(property =>
@@ -266,7 +267,8 @@ namespace TypeD.Models.Providers
                 Properties = source.Properties.Select(property => new Property(property)).ToList(),
                 OveriddenProperties = (useCurrentValuesAsOverrideBaseline ? source.Properties : source.OveriddenProperties)
                     .Select(property => new Property(property)).ToList(),
-                Template = Activator.CreateInstance(source.Template.GetType()) as ComponentTemplate
+                Template = Activator.CreateInstance(source.Template.GetType()) as ComponentTemplate,
+                Removed = source.Removed
             };
             clones.Add(source, clone);
 

@@ -115,6 +115,7 @@ namespace TypeD.Models.Data.SaveContexts
             {
                 ID = component.ID,
                 FullName = component.FullName,
+                Removed = component.Removed,
                 Properties = component.Properties
                     .Where(p => component.HasPropertyOverridesFor(p.Name))
                     .Select(p => new PropertyDTO

@@ -22,6 +22,10 @@
         /// Gets or sets child instances added to this component instance.
         /// </summary>
         public List<ComponentChildDTO> Children { get; set; }
+        /// <summary>
+        /// Gets or sets whether this child inherited from a definition has been removed from the instance.
+        /// </summary>
+        public bool Removed { get; set; }
 
     }
 }

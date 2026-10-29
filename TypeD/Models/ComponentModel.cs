@@ -46,6 +46,8 @@ namespace TypeD.Models
 
             parent.Children.Add(child);
             child.ParentComponent = parent;
+            if (string.IsNullOrEmpty(child.ID))
+                child.ID = Guid.NewGuid().ToString();
             var rootComponent = GetRootComponent(parent);
             ComponentProvider.Save(project, rootComponent);
             ProjectModel.SaveCode(rootComponent.Template.Code);
@@ -68,6 +70,20 @@ namespace TypeD.Models
 
             HookModel.Shoot(new ComponentRemovedHook() { Parent = parent, Child = child });
             child.ParentComponent = null;
+        }
+
+        public void SetRemoved(Project project, Component child, bool removed)
+        {
+            var parent = child.ParentComponent;
+            if (parent == null || child.Removed == removed)
+                return;
+
+            child.Removed = removed;
+            var rootComponent = GetRootComponent(parent);
+            ComponentProvider.Save(project, rootComponent);
+            ProjectModel.SaveCode(rootComponent.Template.Code);
+
+            HookModel.Shoot(new ComponentRemovedStateChangedHook() { Parent = parent, Child = child });
         }
 
         public Type GetType(Component component)

@@ -93,6 +93,14 @@ namespace TypeD.Code
                 {
                     var accessor = isEntity ? "GetEntityByID" : "GetDrawableByID";
                     Writer.AddLine($"var {variableName} = {collection}.{accessor}<{childComponent.FullName}>(({parentExpression} as TypeOEngine.Typedeaf.Core.Engine.Interfaces.IHasParent).FullParentPath + {parentExpression}.ID + \"/{childComponent.ID}\");");
+                    if (childComponent.Removed)
+                    {
+                        Writer.AddLine(isEntity
+                            ? $"{variableName}?.Remove();"
+                            : $"if ({variableName} != null) {collection}.Destroy({variableName});");
+                        Writer.AddRightCurlyBrackets();
+                        continue;
+                    }
                 }
                 else
                 {
