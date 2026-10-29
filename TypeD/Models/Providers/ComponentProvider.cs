@@ -248,7 +248,17 @@ namespace TypeD.Models.Providers
             {
                 nestedChild.ParentComponent = child;
             }
-        }
+
+            if (dto.ChildOrder != null)
+            {
+                var order = dto.ChildOrder;
+                int OrderOf(Component nested)
+                {
+                    var index = order.IndexOf(nested.ID);
+                    return index < 0 ? int.MaxValue : index;
+                }
+                child.Children = child.Children.OrderBy(OrderOf).ToList();
+            }        }
 
         private Component CloneComponent(Project project, Component source, Dictionary<Component, Component> clones, bool useCurrentValuesAsOverrideBaseline = false)
         {

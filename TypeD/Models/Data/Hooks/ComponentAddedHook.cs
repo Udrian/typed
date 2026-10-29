@@ -4,6 +4,7 @@
     {
         public Component Parent { get; set; }
         public Component Child { get; set; }
+        public int Index { get; set; } = -1;
         public ComponentAddedHook() { }
     }
 }

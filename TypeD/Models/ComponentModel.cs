@@ -41,10 +41,17 @@ namespace TypeD.Models
 
         public void AddExisting(Project project, Component parent, Component child)
         {
+            AddExisting(project, parent, child, -1);
+        }
+
+        public void AddExisting(Project project, Component parent, Component child, int index)
+        {
             if (child.ParentComponent != null)
                 throw new InvalidOperationException("The component already belongs to a parent.");
 
-            parent.Children.Add(child);
+            if (index < 0 || index > parent.Children.Count)
+                index = parent.Children.Count;
+            parent.Children.Insert(index, child);
             child.ParentComponent = parent;
             if (string.IsNullOrEmpty(child.ID))
                 child.ID = Guid.NewGuid().ToString();
@@ -52,7 +59,25 @@ namespace TypeD.Models
             ComponentProvider.Save(project, rootComponent);
             ProjectModel.SaveCode(rootComponent.Template.Code);
 
-            HookModel.Shoot(new ComponentAddedHook() { Parent = parent, Child = child });
+            HookModel.Shoot(new ComponentAddedHook() { Parent = parent, Child = child, Index = index });
+        }
+
+        public void Reorder(Project project, Component child, int index)
+        {
+            var parent = child.ParentComponent;
+            if (parent == null)
+                return;
+
+            parent.Children.Remove(child);
+            if (index < 0 || index > parent.Children.Count)
+                index = parent.Children.Count;
+            parent.Children.Insert(index, child);
+
+            var rootComponent = GetRootComponent(parent);
+            ComponentProvider.Save(project, rootComponent);
+            ProjectModel.SaveCode(rootComponent.Template.Code);
+
+            HookModel.Shoot(new ComponentMovedHook() { Parent = parent, Child = child, Index = index });
         }
 
         public void Remove(Project project, Component child)

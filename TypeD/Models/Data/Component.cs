@@ -115,6 +115,31 @@ namespace TypeD.Models.Data
         /// Gets or sets whether this child, inherited from the definition of its parent, has been removed from the parent instance.
         /// </summary>
         public bool Removed { get; set; }
+
+        /// <summary>
+        /// Gets whether this node comes from the definition of the component it is placed in, rather than being owned by the opened component.
+        /// </summary>
+        public bool IsInherited
+        {
+            get
+            {
+                return ParentComponent?.ParentComponent != null && ParentComponent.DefinitionChildren.Contains(this);
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the order of the children differs from the default order, which is the definition children
+        /// in definition order followed by the added children.
+        /// </summary>
+        public bool ChildOrderChanged
+        {
+            get
+            {
+                var defaultOrder = DefinitionChildren.Where(Children.Contains)
+                    .Concat(Children.Where(child => !DefinitionChildren.Contains(child)));
+                return !Children.SequenceEqual(defaultOrder);
+            }
+        }
         /// <summary>
         /// Gets whether any property differs from its value in the current component context.
         /// </summary>
@@ -146,7 +171,7 @@ namespace TypeD.Models.Data
         {
             get
             {
-                return Removed || HasPropertyOverrides || Children.Any(child =>
+                return Removed || HasPropertyOverrides || ChildOrderChanged || Children.Any(child =>
                     !DefinitionChildren.Contains(child) || child.HasChanges);
             }
         }

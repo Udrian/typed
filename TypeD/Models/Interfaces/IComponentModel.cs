@@ -26,6 +26,16 @@ namespace TypeD.Models.Interfaces
         public void AddExisting(Project project, Component parent, Component child);
 
         /// <summary>
+        /// Adds an existing component to the parent at the given index, appending when the index is negative or too large.
+        /// </summary>
+        public void AddExisting(Project project, Component parent, Component child, int index);
+
+        /// <summary>
+        /// Moves a child to a new index within its current parent. The index is relative to the children without the moved child.
+        /// </summary>
+        public void Reorder(Project project, Component child, int index);
+
+        /// <summary>
         /// Removes the specified child component from its parent within the given project.
         /// </summary>
         /// <param name="project">The project from which the component will be removed. Cannot be <see langword="null"/>.</param>

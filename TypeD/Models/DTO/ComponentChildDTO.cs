@@ -23,6 +23,10 @@
         /// </summary>
         public List<ComponentChildDTO> Children { get; set; }
         /// <summary>
+        /// Gets or sets the IDs of all children in their saved order, only written when the order differs from the definition.
+        /// </summary>
+        public List<string> ChildOrder { get; set; }
+        /// <summary>
         /// Gets or sets whether this child inherited from a definition has been removed from the instance.
         /// </summary>
         public bool Removed { get; set; }
