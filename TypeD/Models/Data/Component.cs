@@ -111,6 +111,25 @@ namespace TypeD.Models.Data
         /// are read only, but instances of them added as children to other components are not.
         /// </summary>
         public bool ReadOnly { get; set; }
+
+        /// <summary>
+        /// The file name of the icon used when no icon has been selected anywhere in the inheritance chain.
+        /// </summary>
+        public const string DefaultIcon = "default.png";
+        /// <summary>
+        /// Gets or sets the file name of the icon selected for this component type, or <see langword="null"/> to inherit it from the base component.
+        /// </summary>
+        public string Icon { get; set; }
+        /// <summary>
+        /// Gets the file name of the icon in use, which is the selected icon or the one inherited from the base components.
+        /// </summary>
+        public string ResolvedIcon
+        {
+            get
+            {
+                return !string.IsNullOrEmpty(Icon) ? Icon : BaseInheritedComponent?.ResolvedIcon ?? DefaultIcon;
+            }
+        }
         /// <summary>
         /// Gets or sets whether this child, inherited from the definition of its parent, has been removed from the parent instance.
         /// </summary>

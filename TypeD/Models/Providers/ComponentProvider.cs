@@ -48,13 +48,14 @@ namespace TypeD.Models.Providers
         }
 
         // Functions
-        public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null)
+        public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null, string icon = null)
         {
             var component = TranslateComponentDTO(project, new ComponentDTO()
             {
                 ClassName = className,
                 Interfaces = interfaces ?? new List<string>(),
                 Namespace = @namespace,
+                Icon = icon,
                 BaseInheritedComponent = parentComponent.FullName,
                 TemplateClass = parentComponent.Template.GetType().FullName
             });
@@ -132,6 +133,7 @@ namespace TypeD.Models.Providers
                                     .SelectMany(a => a.GetTypes())
                                     .FirstOrDefault(t => t.FullName.Equals(i))).ToList(),
                 Namespace = dto.Namespace,
+                Icon = dto.Icon,
                 BaseInheritedComponent = Load(project, dto.BaseInheritedComponent),
                 Template = Activator.CreateInstance(AppDomain.CurrentDomain.GetAssemblies()
                                 .SelectMany(a => a.GetTypes())
@@ -273,6 +275,7 @@ namespace TypeD.Models.Providers
                 ClassName = source.ClassName,
                 Namespace = source.Namespace,
                 BaseInheritedComponent = source.BaseInheritedComponent,
+                Icon = source.Icon,
                 Interfaces = new List<Type>(source.Interfaces),
                 TypeOBaseType = source.TypeOBaseType,
                 Properties = source.Properties.Select(property => new Property(property)).ToList(),
@@ -401,7 +404,7 @@ namespace TypeD.Models.Providers
 
             var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
             
-            var retList = components.Union(componentSaveContext.Components)
+            var retList = componentSaveContext.Components.Union(components)
                                     .GroupBy(t => t.FullName)
                                     .Select(t => t.First())
                                     .ToList();

@@ -23,6 +23,7 @@ namespace TypeD.Models.Data
         public string ProjectSourcePath { get { return Path.Combine(Location, ProjectName); } }
         public string ProjectCSProjPath { get { return Path.Combine(Location, ProjectName, $"{ProjectName}.csproj"); } }
         public string ProjectContentPath { get { return Path.Combine(Location, "content"); } }
+        public string ProjectIconsPath { get { return Path.Combine(ProjectTypeOPath, "editor", "icons"); } }
 
         // Tree
         public Tree ComponentTree { get; set; }

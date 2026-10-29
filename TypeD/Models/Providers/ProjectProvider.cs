@@ -126,6 +126,7 @@ namespace TypeD.Models.Providers
             var projectData = JSON.Deserialize<ProjectDTO>(projectFilePath);
             var project = new Project(Path.GetDirectoryName(projectFilePath), projectData);
 
+            ResourceModel.Get<IIconModel>().Sync(project);
             TypeDInit.ProjectLoad(project, ResourceModel);
 
             var downloadProgressStep = 99 / (project.Modules.Count == 0 ? 1 : project.Modules.Count);

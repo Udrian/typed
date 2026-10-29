@@ -50,6 +50,7 @@ namespace TypeD.Models.Data.SaveContexts
                         Namespace = saveComponent.Namespace,
                         BaseInheritedComponent = saveComponent.BaseInheritedComponent?.FullName ?? "",
                         TemplateClass = saveComponent.Template.GetType().FullName,
+                        Icon = saveComponent.Icon,
                         Children = saveComponent.Children.Select(CreateChildDTO).ToList(),
                         Properties = saveComponent.Properties
                             .Where(p => p.Name != "ID" && saveComponent.HasPropertyOverridesFor(p.Name))

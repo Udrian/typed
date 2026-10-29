@@ -25,6 +25,10 @@ namespace TypeD.Models.DTO
         /// </summary>
         public string TemplateClass { get; set; }
         /// <summary>
+        /// Gets or sets the file name of the icon selected for the <see cref="Component"/>, or <see langword="null"/> to inherit it.
+        /// </summary>
+        public string Icon { get; set; }
+        /// <summary>
         /// Gets or sets the name of the parent <see cref="Component"/> associated with this <see cref="Component"/>.
         /// </summary>
         public string BaseInheritedComponent { get; set; }

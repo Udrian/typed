@@ -22,7 +22,7 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="interfaces">An optional list of interface names that the generated component class will implement. Can be <see
         /// langword="null"/> if no interfaces are required.</param>
         /// <returns>A <see cref="ComponentTemplate"/> representing the newly created component template.</returns>
-        public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null);
+        public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null, string icon = null);
 
         /// <summary>
         /// Saves the specified component.
