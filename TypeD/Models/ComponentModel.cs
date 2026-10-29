@@ -111,6 +111,20 @@ namespace TypeD.Models
             HookModel.Shoot(new ComponentRemovedStateChangedHook() { Parent = parent, Child = child });
         }
 
+        public void SetPublic(Project project, Component child, bool isPublic)
+        {
+            var parent = child.ParentComponent;
+            if (parent == null || child.Public == isPublic)
+                return;
+
+            child.Public = isPublic;
+            var rootComponent = GetRootComponent(parent);
+            ComponentProvider.Save(project, rootComponent);
+            ProjectModel.SaveCode(rootComponent.Template.Code);
+
+            HookModel.Shoot(new ComponentPublicStateChangedHook() { Parent = parent, Child = child });
+        }
+
         public Type GetType(Component component)
         {
             return AppDomain.CurrentDomain.GetAssemblies()

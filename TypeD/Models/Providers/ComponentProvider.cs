@@ -187,6 +187,7 @@ namespace TypeD.Models.Providers
 
             var child = CreateInstance(project, definition);
             ApplyChildDTO(project, child, dto);
+            child.Public = dto.Public;
             return child;
         }
 
@@ -278,7 +279,8 @@ namespace TypeD.Models.Providers
                 OveriddenProperties = (useCurrentValuesAsOverrideBaseline ? source.Properties : source.OveriddenProperties)
                     .Select(property => new Property(property)).ToList(),
                 Template = Activator.CreateInstance(source.Template.GetType()) as ComponentTemplate,
-                Removed = source.Removed
+                Removed = source.Removed,
+                Public = source.Public
             };
             clones.Add(source, clone);
 

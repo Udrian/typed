@@ -49,6 +49,11 @@ namespace TypeD.Models.Interfaces
         public void SetRemoved(Project project, Component child, bool removed);
 
         /// <summary>
+        /// Makes a child public, exposing it to components that contain the owning component, or private again.
+        /// </summary>
+        public void SetPublic(Project project, Component child, bool isPublic);
+
+        /// <summary>
         /// Retrieves the <see cref="Type"/> of the specified <see cref="Component"/>.
         /// </summary>
         /// <param name="component">The <see cref="Component"/> whose type is to be retrieved. Cannot be <see langword="null"/>.</param>

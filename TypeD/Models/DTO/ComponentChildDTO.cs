@@ -30,6 +30,10 @@
         /// Gets or sets whether this child inherited from a definition has been removed from the instance.
         /// </summary>
         public bool Removed { get; set; }
+        /// <summary>
+        /// Gets or sets whether this child is exposed as a public property to components containing the owning component.
+        /// </summary>
+        public bool Public { get; set; }
 
     }
 }

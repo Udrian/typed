@@ -1,4 +1,5 @@
-﻿using TypeD.Models.Data;
+﻿using TypeD.Helpers;
+using TypeD.Models.Data;
 using TypeD.Models.Interfaces;
 using TypeD.ViewModel;
 
@@ -50,6 +51,61 @@ namespace TypeD.Code
             Namespace = component.Namespace;
             Component = component;
             BaseClass = BaseInheritedComponent == null ? TypeOBaseType.FullName : BaseInheritedComponent.FullName;
+            TypeDFile.DynamicProperties = PublicChildProperties;
+        }
+
+        private static readonly string[] ReservedNames =
+        {
+            "ID", "Name", "Pause", "Hidden", "DrawOrder", "Parent", "Entities", "Drawables", "Game", "Scene", "Context",
+            "Initialize", "Update", "Draw", "Remove", "Destroy", "Position", "Size", "Origin", "Rotation", "Scale",
+            "FullParentPath", "Visible", "Enabled"
+        };
+
+        private Dictionary<Component, string> GetPublicChildNames()
+        {
+            var names = new Dictionary<Component, string>();
+            var used = new HashSet<string>(ReservedNames) { Component.ClassName };
+            CollectPublicChildren(Component, false, names, used);
+            return names;
+        }
+
+        private void CollectPublicChildren(Component parent, bool instanceChildrenOnly, Dictionary<Component, string> names, HashSet<string> used)
+        {
+            foreach (var child in parent.Children)
+            {
+                var definitionChild = instanceChildrenOnly && parent.DefinitionChildren.Contains(child);
+                if (definitionChild && (!child.HasChanges || child.Removed))
+                    continue;
+
+                var baseTypeName = child.TypeOBaseType.FullName;
+                var isEntity = baseTypeName == "TypeOEngine.Typedeaf.Core.Entities.Entity";
+                var isDrawable = baseTypeName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable";
+                if (!isEntity && !isDrawable)
+                    continue;
+
+                if (!definitionChild && child.Public)
+                {
+                    var name = CSharpIdentifier.Sanitize(child.Name);
+                    var candidate = name;
+                    for (var i = 2; !used.Add(candidate); i++)
+                        candidate = name + i;
+                    names[child] = candidate;
+                }
+
+                if (isEntity)
+                    CollectPublicChildren(child, true, names, used);
+            }
+        }
+
+        private List<Codalyzer.Property> PublicChildProperties()
+        {
+            return GetPublicChildNames().Select(pair => new Codalyzer.Property(
+                $"public {pair.Key.FullName} {pair.Value}",
+                writer =>
+                {
+                    writer.AddLine("get;");
+                    writer.AddLine("private set;");
+                })).ToList();
         }
 
         protected void TypeDInitializeCode()
@@ -66,12 +122,13 @@ namespace TypeD.Code
             if (Component.Children.Count > 0)
                 Writer.AddLine("//Children");
             var childIndex = 0;
-            AddChildrenCode(Component, "this", false, ref childIndex);
+            var publicNames = GetPublicChildNames();
+            AddChildrenCode(Component, "this", false, ref childIndex, publicNames);
             if (Component.Children.Count > 0)
                 Writer.NewLine();
         }
 
-        private void AddChildrenCode(Component parent, string parentExpression, bool instanceChildrenOnly, ref int childIndex)
+        private void AddChildrenCode(Component parent, string parentExpression, bool instanceChildrenOnly, ref int childIndex, Dictionary<Component, string> publicNames)
         {
             foreach (var childComponent in parent.Children)
             {
@@ -105,6 +162,8 @@ namespace TypeD.Code
                 else
                 {
                     Writer.AddLine($"var {variableName} = {collection}.Create<{childComponent.FullName}>(\"{childComponent.ID}\");");
+                    if (publicNames.TryGetValue(childComponent, out var publicName))
+                        Writer.AddLine($"{publicName} = {variableName};");
                 }
 
                 foreach (var property in childComponent.Properties)
@@ -117,7 +176,7 @@ namespace TypeD.Code
 
                 if (isEntity)
                 {
-                    AddChildrenCode(childComponent, variableName, true, ref childIndex);
+                    AddChildrenCode(childComponent, variableName, true, ref childIndex, publicNames);
                 }
 
                 Writer.AddRightCurlyBrackets();

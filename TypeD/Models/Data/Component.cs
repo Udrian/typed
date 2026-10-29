@@ -115,6 +115,38 @@ namespace TypeD.Models.Data
         /// Gets or sets whether this child, inherited from the definition of its parent, has been removed from the parent instance.
         /// </summary>
         public bool Removed { get; set; }
+        /// <summary>
+        /// Gets or sets whether this child is exposed to components that contain the component owning it. Children are private by default.
+        /// </summary>
+        public bool Public { get; set; }
+
+        /// <summary>
+        /// Gets whether this node can be seen and modified from the opened component. Nodes that come from the definition
+        /// of a nested component are only reachable when they, and every inherited node above them, are public.
+        /// </summary>
+        public bool IsVisible
+        {
+            get
+            {
+                for (var node = this; node != null; node = node.ParentComponent)
+                {
+                    if (node.IsInherited && !node.Public)
+                        return false;
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the public state of this node can be toggled from the opened component.
+        /// </summary>
+        public bool CanTogglePublic
+        {
+            get
+            {
+                return ParentComponent != null && !IsInherited && !ParentComponent.ReadOnly && !Removed;
+            }
+        }
 
         /// <summary>
         /// Gets whether this node comes from the definition of the component it is placed in, rather than being owned by the opened component.
