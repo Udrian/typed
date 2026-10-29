@@ -11,17 +11,33 @@ namespace TypeD.Models
 
         public void Init(IResourceModel resourceModel) { }
 
+        private readonly List<string> _extraPaths = new();
+
+        public void AddDefaultIconsPath(string path)
+        {
+            if (!string.IsNullOrEmpty(path) && !_extraPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
+                _extraPaths.Add(path);
+        }
+
+        public IReadOnlyList<string> ListDefaultIconsPaths()
+        {
+            return new[] { DefaultIconsPath }.Concat(_extraPaths).ToList();
+        }
+
         public void Sync(Project project)
         {
-            if (!Directory.Exists(DefaultIconsPath))
-                return;
-
-            Directory.CreateDirectory(project.ProjectIconsPath);
-            foreach (var file in Directory.GetFiles(DefaultIconsPath))
+            foreach (var folder in ListDefaultIconsPaths())
             {
-                var target = Path.Combine(project.ProjectIconsPath, Path.GetFileName(file));
-                if (!File.Exists(target))
-                    File.Copy(file, target);
+                if (!Directory.Exists(folder))
+                    continue;
+
+                Directory.CreateDirectory(project.ProjectIconsPath);
+                foreach (var file in Directory.GetFiles(folder))
+                {
+                    var target = Path.Combine(project.ProjectIconsPath, Path.GetFileName(file));
+                    if (!File.Exists(target))
+                        File.Copy(file, target);
+                }
             }
         }
 

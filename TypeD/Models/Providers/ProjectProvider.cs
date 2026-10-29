@@ -142,6 +142,8 @@ namespace TypeD.Models.Providers
                 progress(downloadProgress);
             }
 
+            ResourceModel.Get<IIconModel>().Sync(project);
+
             ProjectModel.LoadAssembly(project);
             ProjectModel.BuildComponentTree(project);
 

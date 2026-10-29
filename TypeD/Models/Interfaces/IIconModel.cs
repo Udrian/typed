@@ -14,6 +14,16 @@ namespace TypeD.Models.Interfaces
         public string DefaultIconsPath { get; set; }
 
         /// <summary>
+        /// Registers an additional folder of default icons, e.g. from a module. Its icons are copied into every project like <see cref="DefaultIconsPath"/>.
+        /// </summary>
+        public void AddDefaultIconsPath(string path);
+
+        /// <summary>
+        /// Lists all registered default icon folders, including <see cref="DefaultIconsPath"/>.
+        /// </summary>
+        public IReadOnlyList<string> ListDefaultIconsPaths();
+
+        /// <summary>
         /// Copies the default icons that are missing from the icons folder of the project, without overwriting existing files.
         /// </summary>
         public void Sync(Project project);

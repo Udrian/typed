@@ -8,7 +8,7 @@ namespace TypeD.Models.Providers.Interfaces
 
         Task<Content> GetContentAsync(string path);
 
-        void AddSupportedContentType<C>(string extension) where C : Content;
+        void AddSupportedContentType<C>(string extension, string icon = null) where C : Content;
 
         /// <summary>
         /// Adds a supported content type and associates it with the engine types that load it.
@@ -16,9 +16,15 @@ namespace TypeD.Models.Providers.Interfaces
         /// <typeparam name="C">The editor content type.</typeparam>
         /// <typeparam name="TBase">The engine base content type, e.g. Texture.</typeparam>
         /// <typeparam name="TImplementation">The engine implementation of <typeparamref name="TBase"/>, e.g. TKTexture.</typeparam>
-        void AddSupportedContentType<C, TBase, TImplementation>(string extension) where C : Content where TImplementation : TBase;
+        /// <param name="icon">File name of the icon shown on content of this type. It must exist in an icon folder registered with <see cref="TypeD.Models.Interfaces.IIconModel.AddDefaultIconsPath"/>.</param>
+        void AddSupportedContentType<C, TBase, TImplementation>(string extension, string icon = null) where C : Content where TImplementation : TBase;
 
         void RemoveSupportedContentType<C>(string extension) where C : Content;
+
+        /// <summary>
+        /// Gets the icon file name declared for a file extension, or null if there is none.
+        /// </summary>
+        string GetIcon(string extension);
 
         /// <summary>
         /// Lists all associations between editor content, engine base content and engine implementations.

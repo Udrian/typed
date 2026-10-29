@@ -8,6 +8,7 @@ namespace TypeD.Models.Providers
     {
         private Dictionary<string, Type> SupportedContentTypes { get; set; }
         private Dictionary<string, ContentTypeAssociation> Associations { get; } = new();
+        private Dictionary<string, string> Icons { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public ContentProvider()
         {
@@ -40,14 +41,16 @@ namespace TypeD.Models.Providers
             });
         }
 
-        public void AddSupportedContentType<C>(string extension) where C : Content
+        public void AddSupportedContentType<C>(string extension, string icon = null) where C : Content
         {
             SupportedContentTypes.Add(extension, typeof(C));
+            if (icon != null)
+                Icons[extension] = icon;
         }
 
-        public void AddSupportedContentType<C, TBase, TImplementation>(string extension) where C : Content where TImplementation : TBase
+        public void AddSupportedContentType<C, TBase, TImplementation>(string extension, string icon = null) where C : Content where TImplementation : TBase
         {
-            AddSupportedContentType<C>(extension);
+            AddSupportedContentType<C>(extension, icon);
             Associations[extension] = new ContentTypeAssociation(extension, typeof(C), typeof(TBase), typeof(TImplementation));
         }
 
@@ -55,6 +58,13 @@ namespace TypeD.Models.Providers
         {
             SupportedContentTypes.Remove(extension);
             Associations.Remove(extension);
+            Icons.Remove(extension);
+        }
+
+        public string GetIcon(string extension)
+        {
+            extension = extension?.TrimStart('.').ToLowerInvariant();
+            return extension != null && Icons.TryGetValue(extension, out var icon) ? icon : null;
         }
 
         public IReadOnlyList<ContentTypeAssociation> ListAssociations()
