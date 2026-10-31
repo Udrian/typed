@@ -314,7 +314,7 @@ namespace TypeD.Models
             using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
                 byte[] bytes = new byte[fs.Length];
-                fs.Read(bytes, 0, (int)fs.Length);
+                fs.ReadExactly(bytes);
 
                 project.Assembly = System.Reflection.Assembly.Load(bytes);
             }

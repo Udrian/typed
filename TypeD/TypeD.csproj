@@ -14,7 +14,7 @@
 			<PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
 		</PackageReference>
     	<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    	<PackageReference Include="Dock.Model.Avalonia" Version="12.1.0.12" />
+    	<PackageReference Include="Dock.Model.Avalonia" Version="12.1.0.13" />
 	</ItemGroup>
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
 		<Exec Condition="!$([MSBuild]::IsOSUnixLike())" Command="cmd /c &quot;$(ProjectDir)../typer/typer.bat dependency -p $(ProjectDir)../&quot;" />

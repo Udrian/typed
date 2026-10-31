@@ -2,7 +2,7 @@
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using TypeD.Helpers;
@@ -14,6 +14,8 @@ namespace TypeD.Models
 {
     internal class ModuleModel : IModuleModel
     {
+        private static readonly HttpClient Client = new HttpClient();
+
         // Models
         public IHookModel HookModel { get; set; }
         public IResourceModel ResourceModel { get; set; }
@@ -45,12 +47,29 @@ namespace TypeD.Models
             var moduleUrl = new Uri($"https://typedeaf.nyc3.cdn.digitaloceanspaces.com/typeo/releases/modules/{module.Name}/{module.Version}/{zipName}");
             var downloadZipPath = $"{module.ModulePath}/{zipName}";
 
-            using (var client = new WebClient())
+            using (var response = await Client.GetAsync(moduleUrl, HttpCompletionOption.ResponseHeadersRead))
             {
-                client.DownloadProgressChanged += (s, e) => {
-                    progress(e.BytesReceived, e.ProgressPercentage, e.TotalBytesToReceive);
-                };
-                await client.DownloadFileTaskAsync(moduleUrl, downloadZipPath);
+                response.EnsureSuccessStatusCode();
+
+                var totalBytes = response.Content.Headers.ContentLength ?? -1;
+                using (var contentStream = await response.Content.ReadAsStreamAsync())
+                using (var fileStream = new FileStream(downloadZipPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+                {
+                    var buffer = new byte[81920];
+                    long bytesReceived = 0;
+                    int bytesRead;
+
+                    while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length))) != 0)
+                    {
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                        bytesReceived += bytesRead;
+
+                        var percentage = totalBytes > 0
+                            ? (int)(bytesReceived / (double)totalBytes * 100)
+                            : 0;
+                        progress(bytesReceived, percentage, totalBytes);
+                    }
+                }
             }
             await Task.Run(() =>
             {
