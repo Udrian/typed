@@ -28,7 +28,7 @@ namespace TypeD.Models.Providers
                         Name = m.Key,
                         Versions = m.Value.Select(p =>
                         {
-                            return new ModuleProduct(p);
+                            return new ModuleTypeO(p);
                         }).ToList()
                     };
                 }).ToList());
@@ -40,13 +40,13 @@ namespace TypeD.Models.Providers
                 var existingModule = moduleList.Find(m => m.Name == module.Name);
                 if (existingModule == null)
                 {
-                    moduleList.Add(new ModuleList() { Name = module.Name, Versions = new List<ModuleProduct>() { new ModuleProduct() { Version = module.Version } } });
+                    moduleList.Add(new ModuleList() { Name = module.Name, Versions = new List<ModuleTypeO>() { new ModuleTypeO() { Version = module.Version } } });
                 }
                 else
                 {
                     if(!existingModule.Versions.Exists(v => v.Version == module.Version))
                     {
-                        existingModule.Versions.Add(new ModuleProduct() { Version = module.Version });
+                        existingModule.Versions.Add(new ModuleTypeO() { Version = module.Version });
                     }
                 }
             }

@@ -87,10 +87,10 @@ namespace TypeD.Models
         public void LoadAssembly(Project project, Module module)
         {
             if (!File.Exists(module.ModuleDLLPath)) return;
-            if(File.Exists(module.ProductPath))
+            if(File.Exists(module.TypeOPath))
             {
-                var dto = JSON.Deserialize<ModuleListModuleDTO>(module.ProductPath, true);
-                module.Product = new ModuleProduct(dto);
+                var dto = JSON.Deserialize<ModuleListModuleDTO>(module.TypeOPath, true);
+                module.TypeO = new ModuleTypeO(dto);
             }
 
             module.Assembly = System.Reflection.Assembly.LoadFrom(module.ModuleDLLPath);

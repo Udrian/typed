@@ -6,7 +6,7 @@ namespace TypeD.Models.Data
     /// <summary>
     /// The product description of one module version: its version, external files, dependencies and optional dev module.
     /// </summary>
-    public class ModuleProduct
+    public class ModuleTypeO
     {
         /// <summary>Gets or sets the module version.</summary>
         public string Version { get; set; }
@@ -17,13 +17,13 @@ namespace TypeD.Models.Data
         /// <summary>Gets or sets the name of the module's development (editor side) assembly, if any.</summary>
         public string DevModuleName { get; set; }
 
-        internal ModuleProduct()
+        internal ModuleTypeO()
         {
             Dependencies = new List<string>();
             Externals = new List<string>();
         }
 
-        internal ModuleProduct(ModuleListModuleDTO dto)
+        internal ModuleTypeO(ModuleListModuleDTO dto)
         {
             Dependencies = dto.Dependencies;
             Externals = dto.Externals;

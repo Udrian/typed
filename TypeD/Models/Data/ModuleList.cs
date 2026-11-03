@@ -10,6 +10,6 @@ namespace TypeD.Models.Data
         /// <summary>Gets or sets the module name.</summary>
         public string Name { get; set; }
         /// <summary>Gets or sets the available versions of the module.</summary>
-        public List<ModuleProduct> Versions { get; set; }
+        public List<ModuleTypeO> Versions { get; set; }
     }
 }

@@ -18,13 +18,13 @@ namespace TypeD.Models.Data
         /// <summary>Gets a value indicating whether the module is loaded from a local path instead of the module cache.</summary>
         public bool IsLocal { get { return Version.EndsWith(";local"); } }
         /// <summary>Gets a value indicating whether the module has a development (editor side) module.</summary>
-        public bool HaveDevModule { get { return !string.IsNullOrEmpty(Product.DevModuleName); } }
+        public bool HaveDevModule { get { return !string.IsNullOrEmpty(TypeO.DevModuleName); } }
 
         // Paths
         internal string ModulePath { get { return IsLocal ? Version.Replace(";local", "") : Path.Combine(ModuleModel.ModuleCachePath, Name, Version); } }
-        internal string ModuleDLLPath { get { return IsLocal ? Path.Combine(ModulePath, Name, "bin", "Debug", "net7.0", $"{Name}.dll") : Path.Combine(ModulePath, $"{Name}.dll"); } }
-        internal string ModuleDevDLLPath { get { return HaveDevModule ? (IsLocal ? Path.Combine(ModulePath, Product.DevModuleName, "bin", "Debug", "net7.0-windows", $"{Product.DevModuleName}.dll") : Path.Combine(ModulePath, $"{Product.DevModuleName}.dll")) : ""; } }
-        internal string ProductPath { get { return Path.Combine(ModulePath, "product"); } }
+        internal string ModuleDLLPath { get { return IsLocal ? Path.Combine(ModulePath, Name, "bin", "Debug", "net10.0", $"{Name}.dll") : Path.Combine(ModulePath, $"{Name}.dll"); } }
+        internal string ModuleDevDLLPath { get { return HaveDevModule ? (IsLocal ? Path.Combine(ModulePath, TypeO.DevModuleName, "bin", "Debug", "net10.0", $"{TypeO.DevModuleName}.dll") : Path.Combine(ModulePath, $"{TypeO.DevModuleName}.dll")) : ""; } }
+        internal string TypeOPath { get { return Path.Combine(ModulePath, "typeo.json"); } }
 
         // Loaded data
         internal Assembly Assembly { get; set; }
@@ -33,6 +33,6 @@ namespace TypeD.Models.Data
         public TypeInfo ModuleTypeInfo { get; set; }
         internal TypeDModuleInitializer TypeDModuleInitializer { get; set; }
         /// <summary>Gets the product description (dependencies, externals, dev module name) of the module.</summary>
-        public ModuleProduct Product { get; internal set; }
+        public ModuleTypeO TypeO { get; internal set; }
     }
 }
