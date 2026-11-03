@@ -1,9 +1,21 @@
 {
-    "name": "TypeD",
-    "version": "0.1.0",
-    "externals": [],
-    "dependencies": [
-    ],
-    "type" : "module",
-    "testName": "TypeDTest"
+  "name": "TypeD",
+  "version": "0.1.0",
+  "externals": [],
+  "dependencies": [],
+  "type": "module",
+  "project": [
+    {
+      "Name": "TypeD",
+      "type": "",
+      "depends_on": []
+    },
+    {
+      "Name": "TypeDTest",
+      "type": "test",
+      "depends_on": [
+        "TypeD"
+      ]
+    }
+  ]
 }

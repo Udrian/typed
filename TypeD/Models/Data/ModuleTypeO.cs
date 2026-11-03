@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using TypeD.Models.DTO;
 
 namespace TypeD.Models.Data
@@ -28,7 +29,7 @@ namespace TypeD.Models.Data
             Dependencies = dto.Dependencies;
             Externals = dto.Externals;
             Version = dto.Version;
-            DevModuleName = dto.DevModuleName;
+            DevModuleName = dto.Project?.FirstOrDefault(project => project.Type == "dev")?.Name;
         }
     }
 }
