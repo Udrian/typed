@@ -4,15 +4,20 @@ using TypeD.Models.Providers.Interfaces;
 
 namespace TypeD.Models.Data.SaveContexts
 {
+    /// <summary>
+    /// Save context that writes the project file.
+    /// </summary>
     public class ProjectSaveContext : SaveContext
     {
         // Providers
         IProjectProvider ProjectProvider { get; set; }
 
         // Properties
+        /// <summary>Gets or sets the project to save.</summary>
         public Project Project { get; set; }
 
         // Constructors
+        /// <inheritdoc/>
         public override void Init(IResourceModel resourceModel, object param = null)
         {
             ProjectProvider = resourceModel.Get<IProjectProvider>();
@@ -21,6 +26,7 @@ namespace TypeD.Models.Data.SaveContexts
         }
 
         // Functions
+        /// <inheritdoc/>
         public override Task SaveAction(Project project)
         {
             return ProjectProvider.Save(Project);

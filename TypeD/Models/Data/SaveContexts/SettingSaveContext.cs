@@ -5,15 +5,20 @@ using TypeD.Models.Interfaces;
 
 namespace TypeD.Models.Data.SaveContexts
 {
+    /// <summary>
+    /// Save context that writes modified settings to their setting files.
+    /// </summary>
     public class SettingSaveContext : SaveContext
     {
         // Properties
+        /// <summary>Gets or sets the settings to save; only those marked as changed are written.</summary>
         public List<SettingContext> Settings { get; set; }
 
         // Models
         ISettingModel SettingModel { get; set; }
 
         // Constructors
+        /// <inheritdoc/>
         public override void Init(IResourceModel resourceModel, object param = null)
         {
             Settings = new List<SettingContext>();
@@ -22,6 +27,7 @@ namespace TypeD.Models.Data.SaveContexts
         }
 
         // Functions
+        /// <inheritdoc/>
         public override Task SaveAction(Project project)
         {
             return Task.Run(() =>

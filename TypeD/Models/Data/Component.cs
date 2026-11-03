@@ -31,6 +31,9 @@ namespace TypeD.Models.Data
             }
         }
 
+        /// <summary>
+        /// Gets the path of this component's parent chain, as parent ids each followed by a slash; empty for a root component.
+        /// </summary>
         public string FullParentPath
         {
             get
@@ -41,6 +44,9 @@ namespace TypeD.Models.Data
             }
         }
 
+        /// <summary>
+        /// Gets or sets the display name from the "Name" property, falling back to the class name when it is empty.
+        /// </summary>
         public string Name
         {
             get

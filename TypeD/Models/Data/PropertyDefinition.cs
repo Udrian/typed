@@ -54,10 +54,13 @@ namespace TypeD.Models.Data
     /// <typeparam name="TNode">The view model type. Needs a constructor taking (Component, Property, Action&lt;PropertyNode, object&gt;).</typeparam>
     public abstract class PropertyDefinition<TValue, TNode> : IPropertyDefinition where TNode : PropertyNode
     {
+        /// <inheritdoc/>
         public virtual Type Type => typeof(TValue);
 
+        /// <inheritdoc/>
         public Type ValueType => typeof(TValue);
 
+        /// <inheritdoc/>
         public virtual JsonConverter JsonConverter => null;
 
         /// <summary>
@@ -70,15 +73,22 @@ namespace TypeD.Models.Data
         /// </summary>
         protected abstract string TemplateKey { get; }
 
+        /// <summary>
+        /// Creates the C# expression that evaluates to the value, used when generating component code.
+        /// </summary>
+        /// <param name="value">The value to convert.</param>
+        /// <returns>The C# expression for the value.</returns>
         public abstract string ToCode(TValue value);
 
         string IPropertyDefinition.ToCode(object value) => ToCode((TValue)value);
 
+        /// <inheritdoc/>
         public virtual PropertyNode CreateNode(Component component, Property property, Action<PropertyNode, object> valueChanged)
         {
             return (PropertyNode)Activator.CreateInstance(typeof(TNode), component, property, valueChanged);
         }
 
+        /// <inheritdoc/>
         public virtual IDataTemplate CreateTemplate()
         {
             var resources = (IResourceDictionary)AvaloniaXamlLoader.Load(new Uri(TemplateUri));

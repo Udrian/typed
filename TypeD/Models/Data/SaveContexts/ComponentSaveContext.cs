@@ -7,6 +7,9 @@ using TypeD.Models.Providers.Interfaces;
 
 namespace TypeD.Models.Data.SaveContexts
 {
+    /// <summary>
+    /// Save context that writes component definition files and removes the files of deleted or renamed components.
+    /// </summary>
     public class ComponentSaveContext : SaveContext
     {
         // Models
@@ -17,12 +20,17 @@ namespace TypeD.Models.Data.SaveContexts
         IComponentProvider ComponentProvider { get; set; }
 
         // Properties
+        /// <summary>Gets or sets the project the components belong to.</summary>
         public Project Project { get; set; }
+        /// <summary>Gets or sets the components to save.</summary>
         public List<Component> Components { get; set; }
+        /// <summary>Gets or sets the components whose files are deleted.</summary>
         public List<Component> DeletedComponents { get; set; }
+        /// <summary>Gets or sets the renamed components, each with its previous class name.</summary>
         public List<Tuple<string, Component>> RenamedComponents { get; set; }
 
         // Constructors
+        /// <inheritdoc/>
         public override void Init(IResourceModel resourceModel, object param = null)
         {
             Components = new List<Component>();
@@ -37,6 +45,7 @@ namespace TypeD.Models.Data.SaveContexts
         }
 
         // Functions
+        /// <inheritdoc/>
         public override Task SaveAction(Project project)
         {
             return Task.Run(() => {

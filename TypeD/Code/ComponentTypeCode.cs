@@ -108,6 +108,7 @@ namespace TypeD.Code
                 })).ToList();
         }
 
+        /// <summary>Writes the code that sets the component's properties and creates its children.</summary>
         protected void TypeDInitializeCode()
         {
             if (Component.Properties.Count > 0)
@@ -183,6 +184,9 @@ namespace TypeD.Code
             }
         }
 
+        /// <summary>Writes the code that assigns a property's value; read-only and unnamed properties are skipped.</summary>
+        /// <param name="property">The property to write.</param>
+        /// <param name="prepend">Text placed before the property name, e.g. a child variable and a dot.</param>
         protected void AddPropertyCode(TypeD.Models.Data.Property property, string prepend = "")
         {
             if (string.IsNullOrEmpty(property.Name) || property.ReadOnly)

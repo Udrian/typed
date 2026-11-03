@@ -5,13 +5,21 @@ using Avalonia.Media.Imaging;
 
 namespace TypeD.Models.Data
 {
+    /// <summary>
+    /// A content file (such as an image or font) of a project, with its raw data and optional thumbnail.
+    /// </summary>
     public class Content
     {
+        /// <summary>Gets or sets the file path of the content.</summary>
         public string Path { get; set; }
+        /// <summary>Gets or sets the display name of the content.</summary>
         public string Name { get; set; }
+        /// <summary>Gets or sets the raw bytes of the content.</summary>
         public byte[] Data { get; set; }
+        /// <summary>Gets the thumbnail image of the content, if the content type provides one.</summary>
         public Bitmap Thumbnail { get; protected set; }
 
+        /// <summary>Prepares the content after its data is loaded; content types override this to build their thumbnail and metadata.</summary>
         public virtual void Initialize() { }
 
         /// <summary>
@@ -42,11 +50,16 @@ namespace TypeD.Models.Data
             return properties;
         }
 
+        /// <summary>Creates the empty vertical panel that hosts the tooltip rows.</summary>
+        /// <returns>The new panel.</returns>
         protected static StackPanel CreateToolTipPanel()
         {
             return new StackPanel { Spacing = 6, MaxWidth = 420 };
         }
 
+        /// <summary>Adds a two-column grid of name and value rows to the tooltip panel.</summary>
+        /// <param name="panel">The panel to add the grid to.</param>
+        /// <param name="properties">The name and value pairs to show.</param>
         protected static void AddToolTipRows(StackPanel panel, IEnumerable<KeyValuePair<string, string>> properties)
         {
             var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
@@ -71,6 +84,9 @@ namespace TypeD.Models.Data
             panel.Children.Add(grid);
         }
 
+        /// <summary>Formats a byte count as a human readable size, e.g. "1.5 KB (1,536 B)".</summary>
+        /// <param name="bytes">The size in bytes.</param>
+        /// <returns>The formatted size.</returns>
         protected static string FormatSize(long bytes)
         {
             string[] units = { "B", "KB", "MB", "GB" };

@@ -3,8 +3,15 @@ using TypeD.ViewModel;
 
 namespace TypeD.Helpers
 {
+    /// <summary>
+    /// Helpers that build Avalonia UI from the editor's view definitions.
+    /// </summary>
     public static class ViewHelper
     {
+        /// <summary>Adds a menu item and its sub items to an Avalonia menu, reusing items that already exist.</summary>
+        /// <param name="currentMenu">The menu or menu item to add to.</param>
+        /// <param name="item">The menu item definition.</param>
+        /// <param name="model">The view model that supplies click parameters.</param>
         public static void InitMenu(Avalonia.Controls.ItemsControl currentMenu, MenuItem item, ViewModelBase model)
         {
             Avalonia.Controls.MenuItem newMenuItem = null;

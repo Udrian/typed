@@ -7,8 +7,11 @@ namespace TypeD.Models.Data
     /// </summary>
     public class Property
     {
+        /// <summary>Initializes a new instance of the <see cref="Property"/> class.</summary>
         public Property() { }
 
+        /// <summary>Initializes a new instance of the <see cref="Property"/> class as a copy of another property.</summary>
+        /// <param name="property">The property to copy.</param>
         public Property(Property property)
         {
             Name = property.Name;

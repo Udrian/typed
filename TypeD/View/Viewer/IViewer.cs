@@ -7,6 +7,9 @@ namespace TypeD.View.Viewer
     /// </summary>
     public interface IViewer
     {
+        /// <summary>
+        /// Gets or sets the project the viewer belongs to.
+        /// </summary>
         Project Project { get; set; }
 
         /// <summary>

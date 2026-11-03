@@ -19,8 +19,8 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="className">The name of the class to be generated for the component template.</param>
         /// <param name="namespace">The namespace to assign to the generated component class.</param>
         /// <param name="parentComponent">The component details used to define the structure and behavior of the template.</param>
-        /// <param name="interfaces">An optional list of interface names that the generated component class will implement. Can be <see
-        /// langword="null"/> if no interfaces are required.</param>
+        /// <param name="interfaces">An optional list of interface names that the generated component class will implement. Can be <see langword="null"/> if no interfaces are required.</param>
+        /// <param name="icon">An optional icon to assign to the component. Can be <see langword="null"/> to use the default icon.</param>
         /// <returns>A <see cref="ComponentTemplate"/> representing the newly created component template.</returns>
         public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null, string icon = null);
 
@@ -56,6 +56,9 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="component">The component to delete from the project. Cannot be <see langword="null"/>.</param>
         public void Delete(Project project, Component component);
 
+        /// <summary>Restores a previously deleted component to the project.</summary>
+        /// <param name="project">The project.</param>
+        /// <param name="component">The component to restore.</param>
         public void Restore(Project project, Component component);
 
         /// <summary>

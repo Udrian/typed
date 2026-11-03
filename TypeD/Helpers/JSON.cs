@@ -5,6 +5,9 @@ using System.Text.Json.Serialization;
 
 namespace TypeD.Helpers
 {
+    /// <summary>
+    /// JSON file serialization with the registered converters.
+    /// </summary>
     public static class JSON
     {
         private static readonly List<JsonConverter> CustomConverters = new();
@@ -22,6 +25,8 @@ namespace TypeD.Helpers
             }
         }
 
+        /// <summary>Unregisters a converter of the same type.</summary>
+        /// <param name="converter">The converter to remove.</param>
         public static void RemoveConverter(JsonConverter converter)
         {
             lock (ConvertersLock)
@@ -46,6 +51,10 @@ namespace TypeD.Helpers
             return options;
         }
 
+        /// <summary>Serializes an object to a JSON file, creating its folder if needed.</summary>
+        /// <param name="obj">The object to serialize.</param>
+        /// <param name="filePath">The file to write.</param>
+        /// <returns><c>true</c> if the file was written.</returns>
         public static bool Serialize(object obj, string filePath)
         {
             var json = JsonSerializer.Serialize(obj, obj.GetType(), CreateOptions());
@@ -56,6 +65,11 @@ namespace TypeD.Helpers
             return true;
         }
 
+        /// <summary>Deserializes an object from a JSON file.</summary>
+        /// <typeparam name="T">The type to deserialize.</typeparam>
+        /// <param name="filePath">The file to read.</param>
+        /// <param name="ignoreCase">Whether property names are matched case-insensitively.</param>
+        /// <returns>The object, or <c>default</c> if the file does not exist.</returns>
         public static T Deserialize<T>(string filePath, bool ignoreCase = false)
         {
             if (!File.Exists(filePath))

@@ -2,15 +2,19 @@
 
 namespace TypeD.View.TreeNodes
 {
+    /// <summary>A tree of nodes.</summary>
     public class Tree : TreeNode
     {
+        /// <inheritdoc/>
         public IList<Node> Nodes { get; set; }
 
+        /// <summary>Initializes a new instance of the <see cref="Tree"/> class with no nodes.</summary>
         public Tree()
         {
             Nodes = new List<Node>();
         }
 
+        /// <inheritdoc/>
         public void AddNode(string name, string key, object item)
         {
             var node = new Node(name, key, item, this, null);
@@ -23,11 +27,13 @@ namespace TypeD.View.TreeNodes
             parent.Nodes.Add(node);
         }
 
+        /// <inheritdoc/>
         public bool Contains(string key)
         {
             return Get(key) != null;
         }
 
+        /// <inheritdoc/>
         public Node Get(string key)
         {
             foreach(var node in Nodes)
@@ -37,6 +43,7 @@ namespace TypeD.View.TreeNodes
             return null;
         }
 
+        /// <inheritdoc/>
         public void Clear()
         {
             InternalClear();

@@ -2,6 +2,9 @@ using System.Text;
 
 namespace TypeD.Helpers
 {
+    /// <summary>
+    /// Helpers for producing valid C# identifiers.
+    /// </summary>
     public static class CSharpIdentifier
     {
         private static readonly HashSet<string> Keywords = new HashSet<string>

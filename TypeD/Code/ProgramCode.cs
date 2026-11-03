@@ -3,13 +3,18 @@ using System.Reflection;
 
 namespace TypeD.Code
 {
+    /// <summary>
+    /// Generates the program entry point of a project.
+    /// </summary>
     public class ProgramCode : Codalyzer
     {
         // Constructors
+        /// <summary>Initializes a new instance of the <see cref="ProgramCode"/> class.</summary>
         public ProgramCode() : base()
         {
         }
 
+        /// <inheritdoc/>
         public override void Init()
         {
             ClassName = "Program";
@@ -19,6 +24,7 @@ namespace TypeD.Code
             base.Init();
         }
 
+        /// <inheritdoc/>
         protected override void InitClass()
         {
             AddUsings(new List<string>()
