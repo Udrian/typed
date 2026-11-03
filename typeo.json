@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "externals": [],
   "dependencies": [
+    "Avalonia-12.1.4;nuget",
+    "Avalonia.Desktop-12.1.4;nuget",
+    "Avalonia.Themes.Fluent-12.1.4;nuget",
+    "Avalonia.Fonts.Inter-12.1.4;nuget",
+    "Avalonia.Diagnostics-11.3.22;nuget",
+    "CommunityToolkit.Mvvm-8.4.2;nuget",
+    "Dock.Model.Avalonia-12.1.0.13;nuget",
     "coverlet.collector-10.1.0;nuget;test",
     "Microsoft.NET.Test.Sdk-18.11.0;nuget;test",
     "xunit-2.9.3;nuget;test",

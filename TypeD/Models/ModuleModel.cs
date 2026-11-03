@@ -1,12 +1,13 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
-using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
-using System.Xml.Linq;
+using TypeD.Code;
 using TypeD.Helpers;
 using TypeD.Models.Data;
+using TypeD.Models.Data.SaveContexts;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
 
@@ -14,12 +15,12 @@ namespace TypeD.Models
 {
     internal class ModuleModel : IModuleModel
     {
-        private static readonly HttpClient Client = new HttpClient();
-
         // Models
         public IHookModel HookModel { get; set; }
         public IResourceModel ResourceModel { get; set; }
         public ISaveModel SaveModel { get; set; }
+        public ITyperModel TyperModel { get; set; }
+        public ILogModel LogModel { get; set; }
 
         // Paths
         public static string ModuleCachePath { get { return $"{Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)}/TypeO/ModulesCache"; } }
@@ -33,65 +34,150 @@ namespace TypeD.Models
 
             HookModel = ResourceModel.Get<IHookModel>();
             SaveModel = ResourceModel.Get<ISaveModel>();
+            TyperModel = ResourceModel.Get<ITyperModel>();
+            LogModel = ResourceModel.Get<ILogModel>();
         }
 
         // Functions
-        public async Task<bool> Download(Module module, Action<long, int, long> progress)
+        public async Task Initialize(Project project)
         {
-            if (module.Version.EndsWith("local")) return false;
-            if (Directory.Exists($"{module.ModulePath}")) return false;
+            var typeOPath = Path.Combine(project.Location, "typeo.json");
+            if (File.Exists(typeOPath)) return;
 
-            Directory.CreateDirectory(module.ModulePath);
-
-            var zipName = $"{module.Name}-{module.Version}.zip";
-            var moduleUrl = new Uri($"https://typedeaf.nyc3.cdn.digitaloceanspaces.com/typeo/releases/modules/{module.Name}/{module.Version}/{zipName}");
-            var downloadZipPath = $"{module.ModulePath}/{zipName}";
-
-            using (var response = await Client.GetAsync(moduleUrl, HttpCompletionOption.ResponseHeadersRead))
+            var typeO = new
             {
-                response.EnsureSuccessStatusCode();
+                name = project.ProjectName,
+                version = "0.1.0",
+                type = "exe",
+                dependencies = new string[0],
+                project = new[] { new { Name = project.ProjectName, type = "" } }
+            };
+            await File.WriteAllTextAsync(typeOPath, JsonSerializer.Serialize(typeO, new JsonSerializerOptions { WriteIndented = true }));
+        }
 
-                var totalBytes = response.Content.Headers.ContentLength ?? -1;
-                using (var contentStream = await response.Content.ReadAsStreamAsync())
-                using (var fileStream = new FileStream(downloadZipPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+        public async Task<bool> Resolve(Project project)
+        {
+            await Initialize(project);
+
+            var resolved = await TyperModel.Resolve(project.Location);
+            if (resolved)
+            {
+                await SyncModules(project);
+            }
+            else
+            {
+                LogModel.Log("Could not resolve dependencies, using the modules already known by the project");
+            }
+
+            foreach (var module in project.Modules)
+            {
+                // Local modules are under development so keep their own solution and dependencies in sync as well
+                if (resolved && module.IsLocal && File.Exists(module.TypeOPath))
                 {
-                    var buffer = new byte[81920];
-                    long bytesReceived = 0;
-                    int bytesRead;
-
-                    while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length))) != 0)
-                    {
-                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                        bytesReceived += bytesRead;
-
-                        var percentage = totalBytes > 0
-                            ? (int)(bytesReceived / (double)totalBytes * 100)
-                            : 0;
-                        progress(bytesReceived, percentage, totalBytes);
-                    }
+                    await TyperModel.Resolve(module.ModulePath);
+                }
+                await Build(module);
+                if (module.Assembly == null)
+                {
+                    LoadAssembly(project, module);
                 }
             }
-            await Task.Run(() =>
-            {
-                ZipFile.ExtractToDirectory(downloadZipPath, module.ModulePath);
-            });
+            return resolved;
+        }
 
-            await Task.Run(() =>
-            {
-                File.Delete(downloadZipPath);
-            });
+        public async Task<bool> Add(Project project, string author, string name, string version)
+        {
+            if (string.IsNullOrEmpty(author) || string.IsNullOrEmpty(version)) return false;
+            await Initialize(project);
+            return await Apply(project, await TyperModel.AddDependency(project.Location, $"{author}@{name}-{version}"));
+        }
 
-            return true;
+        public async Task<bool> Remove(Project project, string name)
+        {
+            await Initialize(project);
+            var dependency = (await TyperModel.ListDependencies(project.Location)).FirstOrDefault(d => d.Name == name && !d.Nuget);
+            if (dependency == null) return false;
+
+            if (dependency.Overridden)
+            {
+                await TyperModel.RemoveOverride(project.Location, name);
+            }
+            return await Apply(project, await TyperModel.RemoveDependency(project.Location, name));
+        }
+
+        public async Task<bool> Update(Project project, string name = null, string version = null)
+        {
+            await Initialize(project);
+            return await Apply(project, await TyperModel.UpdateDependency(project.Location, name, version));
+        }
+
+        public async Task<bool> UseLocal(Project project, string name, string path)
+        {
+            await Initialize(project);
+            return await Apply(project, await TyperModel.AddOverride(project.Location, name, path));
+        }
+
+        public async Task<bool> UseReleased(Project project, string name)
+        {
+            await Initialize(project);
+            return await Apply(project, await TyperModel.RemoveOverride(project.Location, name));
+        }
+
+        public async Task<bool> UpdateLocal(Project project, string name)
+        {
+            var module = project.Modules.Find(m => m.Name == name && m.IsLocal);
+            if (module == null) return false;
+
+            return await Apply(project, await TyperModel.UpdateDependency(module.ModulePath));
+        }
+
+        public async Task<bool> CreateLocal(Project project, string name, string outputPath)
+        {
+            if (!await TyperModel.CreateModule(name, outputPath)) return false;
+
+            // The new module has no release yet, so it is added as a dependency that is overridden by the local folder
+            await Initialize(project);
+            var localPath = Path.Combine(outputPath, name.ToLower());
+            if (!await TyperModel.AddDependency(project.Location, $"Local@{name}-0.1.0")) return false;
+            return await Apply(project, await TyperModel.AddOverride(project.Location, name, localPath));
+        }
+
+        public async Task<bool> Build(Module module)
+        {
+            if (IsBuilt(module) && (!module.IsLocal || module.Assembly != null)) return true;
+
+            var solution = Path.Combine(module.ModulePath, $"{module.Name}.sln");
+            var target = File.Exists(solution) ? solution : Path.Combine(module.ModulePath, module.Name, $"{module.Name}.csproj");
+            if (!File.Exists(target)) return false;
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                WorkingDirectory = module.ModulePath,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            foreach (var arg in new[] { "build", target, "-c", "Debug", "--verbosity", "quiet" }) startInfo.ArgumentList.Add(arg);
+
+            LogModel.Log($"Building module {module.Name}");
+            using var process = Process.Start(startInfo);
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            if (process.ExitCode != 0)
+            {
+                LogModel.Log(await output);
+                LogModel.Log(await error);
+            }
+
+            return IsBuilt(module);
         }
 
         public void LoadAssembly(Project project, Module module)
         {
             if (!File.Exists(module.ModuleDLLPath)) return;
-            if(File.Exists(module.TypeOPath))
-            {
-                var dto = JSON.Deserialize<ModuleListModuleDTO>(module.TypeOPath, true);
-                module.TypeO = new ModuleTypeO(dto);
-            }
 
             module.Assembly = System.Reflection.Assembly.LoadFrom(module.ModuleDLLPath);
             module.ModuleTypeInfo = GetModuleType(module);
@@ -111,22 +197,60 @@ namespace TypeD.Models
             module.ModuleTypeInfo = null;
         }
 
-        public void AddToProjectXML(Module module, XElement project)
-        {
-            AddReference(module, GetItemGroup(project, "Debug"));
-            AddReference(module, GetItemGroup(project, "Release"));
-        }
-
-        public void RemoveFromProjectXML(Module module, XElement project)
-        {
-            RemoveReference(module, GetItemGroup(project, "Debug"));
-            RemoveReference(module, GetItemGroup(project, "Release"));
-        }
-
         // Internal functions
+        private async Task<bool> Apply(Project project, bool changed)
+        {
+            if (!changed) return false;
+
+            var resolved = await Resolve(project);
+            SaveModel.AddSave<ProjectSaveContext>(project);
+            ResourceModel.Get<IProjectModel>().InitAndSaveCode(project, new ProgramCode());
+            return resolved;
+        }
+
+        // Replaces the project's modules with the dependencies typer resolved, including the dependencies of the modules themselves
+        private async Task SyncModules(Project project)
+        {
+            var modules = new List<Module>();
+            var visited = new HashSet<string>();
+
+            async Task Collect(string path)
+            {
+                foreach (var dependency in await TyperModel.ListDependencies(path))
+                {
+                    if (dependency.Nuget || dependency.Tags.Count > 0 || dependency.Name == "TypeD") continue;
+                    if (!visited.Add(dependency.Name)) continue;
+
+                    // Overrides declared by a module are relative to that module, so make the path absolute
+                    var version = dependency.IsLocal ? $"{Path.GetFullPath(dependency.LocalPath, path)};local" : dependency.Version;
+                    var module = project.Modules.Find(m => m.Name == dependency.Name && m.Version == version)
+                        ?? new Module() { Name = dependency.Name, Version = version };
+                    modules.Add(module);
+
+                    if (File.Exists(module.TypeOPath))
+                    {
+                        await Collect(module.ModulePath);
+                    }
+                }
+            }
+            await Collect(project.Location);
+
+            foreach (var removed in project.Modules.Where(m => !modules.Contains(m)))
+            {
+                UnloadAssembly(removed);
+            }
+            project.Modules.Clear();
+            project.Modules.AddRange(modules);
+        }
+
+        private bool IsBuilt(Module module)
+        {
+            return File.Exists(module.ModuleDLLPath) && (!module.HaveDevModule || File.Exists(module.ModuleDevDLLPath));
+        }
+
         private void InitializeTypeD(Project project, Module module)
         {
-            if (!module.HaveDevModule) return;
+            if (!module.HaveDevModule || module.DevAssembly == null) return;
 
             var typeDInitType = module.DevAssembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
             if (typeDInitType == null) return;
@@ -139,12 +263,12 @@ namespace TypeD.Models
 
         private void UninitializeTypeD(Module module)
         {
-            if (!module.HaveDevModule) return;
+            if (!module.HaveDevModule || module.DevAssembly == null) return;
 
             var typeDInitType = module.DevAssembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
             if (typeDInitType == null) return;
 
-            module.TypeDModuleInitializer.Uninitializer();
+            module.TypeDModuleInitializer?.Uninitializer();
         }
 
         private System.Reflection.TypeInfo GetModuleType(Module module)
@@ -161,62 +285,6 @@ namespace TypeD.Models
             }
 
             return moduleType;
-        }
-
-        private XElement GetItemGroup(XElement project, string configuration)
-        {
-            var configString = $"'$(Configuration)' == '{configuration}'";
-            var itemGroups = project.Elements("ItemGroup");
-            XElement itemGroup = null;
-
-            foreach (var item in itemGroups)
-            {
-                if (item.Attribute("Condition")?.Value == configString)
-                {
-                    itemGroup = item;
-                }
-            }
-            if (itemGroup == null)
-            {
-                itemGroup = new XElement("ItemGroup");
-                itemGroup.Add(new XAttribute("Condition", configString));
-                project.Add(itemGroup);
-            }
-            return itemGroup;
-        }
-
-        private void AddReference(Module module, XElement itemGroup)
-        {
-            var foundModule = false;
-            foreach (var referenceElement in itemGroup.Elements("Reference"))
-            {
-                if (referenceElement.Attribute("Include")?.Value == module.Name)
-                {
-                    foundModule = true;
-                    break;
-                }
-            }
-            if (!foundModule)
-            {
-                var referenceElement = new XElement("Reference");
-                referenceElement.Add(new XAttribute("Include", module.Name));
-
-                referenceElement.Add(new XElement("HintPath", module.ModuleDLLPath));
-
-                itemGroup.Add(referenceElement);
-            }
-        }
-
-        private void RemoveReference(Module module, XElement itemGroup)
-        {
-            foreach (var referenceElement in itemGroup.Elements("Reference"))
-            {
-                if (referenceElement.Attribute("Include")?.Value == module.Name)
-                {
-                    referenceElement.Remove();
-                    break;
-                }
-            }
         }
     }
 }

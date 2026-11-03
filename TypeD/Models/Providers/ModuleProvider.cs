@@ -1,6 +1,4 @@
-﻿using TypeD.Helpers;
 using TypeD.Models.Data;
-using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
 using TypeD.Models.Providers.Interfaces;
 
@@ -8,33 +6,23 @@ namespace TypeD.Models.Providers
 {
     internal class ModuleProvider : IModuleProvider
     {
+        // Models
+        ITyperModel TyperModel { get; set; }
+
         // Constructors
         public ModuleProvider() { }
 
-        public void Init(IResourceModel resourceModel) { }
+        public void Init(IResourceModel resourceModel)
+        {
+            TyperModel = resourceModel.Get<ITyperModel>();
+        }
 
         // Functions
         public async Task<IEnumerable<ModuleList>> List(Project project)
         {
-            List<ModuleList> moduleList = new List<ModuleList>();
+            var moduleList = (await TyperModel.ListModules()).Where(m => m.Name != "TypeD").ToList();
 
-            var data = await APICaller.GetJsonObject<ModuleListDTO>("module/list");
-            if(data?.Modules != null)
-            {
-                moduleList.AddRange(data.Modules.Select(m =>
-                {
-                    return new ModuleList()
-                    {
-                        Name = m.Key,
-                        Versions = m.Value.Select(p =>
-                        {
-                            return new ModuleTypeO(p);
-                        }).ToList()
-                    };
-                }).ToList());
-                moduleList.RemoveAll(m => m.Name == "TypeD");
-            }
-
+            // Modules in use that typer does not know about, for example local ones, are listed with the version in use
             foreach (var module in project.Modules)
             {
                 var existingModule = moduleList.Find(m => m.Name == module.Name);
@@ -42,12 +30,9 @@ namespace TypeD.Models.Providers
                 {
                     moduleList.Add(new ModuleList() { Name = module.Name, Versions = new List<ModuleTypeO>() { new ModuleTypeO() { Version = module.Version } } });
                 }
-                else
+                else if (!module.IsLocal && !existingModule.Versions.Exists(v => v.Version == module.Version))
                 {
-                    if(!existingModule.Versions.Exists(v => v.Version == module.Version))
-                    {
-                        existingModule.Versions.Add(new ModuleTypeO() { Version = module.Version });
-                    }
+                    existingModule.Versions.Add(new ModuleTypeO() { Version = module.Version });
                 }
             }
 

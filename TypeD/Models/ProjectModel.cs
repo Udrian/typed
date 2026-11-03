@@ -45,45 +45,6 @@ namespace TypeD.Models
         }
 
         // Functions
-        public void AddModule(Project project, Module module)
-        {
-            if (!File.Exists(project.ProjectCSProjPath)) return;
-            if (project.Modules.Exists(m => m.Name == module.Name && m.Version == module.Version)) return;
-
-            var projectCSProjSaveContext = SaveModel.GetSaveContext<ProjectCSProjSaveContext>(project.ProjectCSProjPath);
-            if (project.Modules.Exists(m => m.Name == module.Name))
-            {
-                var removedModule = project.Modules.Find(m => m.Name == module.Name);
-                project.Modules.Remove(removedModule);
-                ModuleModel.RemoveFromProjectXML(removedModule, projectCSProjSaveContext.CSProj);
-                ModuleModel.UnloadAssembly(removedModule);
-            }
-
-            project.Modules.Add(module);
-            SaveModel.AddSave<ProjectSaveContext>(project);
-            ModuleModel.AddToProjectXML(module, projectCSProjSaveContext.CSProj);
-            SaveModel.AddSave<ProjectCSProjSaveContext>();
-
-            InitAndSaveCode(project, new ProgramCode());
-        }
-
-        public void RemoveModule(Project project, string moduleName)
-        {
-            if (!File.Exists(project.ProjectCSProjPath)) return;
-            var module = project.Modules.Find(m => m.Name == moduleName);
-            project.Modules.Remove(module);
-
-            SaveModel.AddSave<ProjectSaveContext>(project);
-
-            var projectCSProjSaveContext = SaveModel.GetSaveContext<ProjectCSProjSaveContext>(project.ProjectCSProjPath);
-            ModuleModel.RemoveFromProjectXML(module, projectCSProjSaveContext.CSProj);
-            SaveModel.AddSave<ProjectCSProjSaveContext>();
-
-            ModuleModel.UnloadAssembly(module);
-
-            InitAndSaveCode(project, new ProgramCode());
-        }
-
         public async Task<bool> Build(Project project)
         {
             var path = Path.Combine(project.Location, project.CSSolutionPath);

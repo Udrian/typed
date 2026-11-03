@@ -9,6 +9,8 @@ namespace TypeD.Models.Data
     {
         /// <summary>Gets or sets the module name.</summary>
         public string Name { get; set; }
+        /// <summary>Gets or sets the author (GitHub owner) of the module.</summary>
+        public string Author { get; set; }
         /// <summary>Gets or sets the available versions of the module.</summary>
         public List<ModuleTypeO> Versions { get; set; }
     }

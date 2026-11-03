@@ -62,7 +62,7 @@ namespace TypeD.Models.Data
             ProjectName = projectData.ProjectName;
             CSSolutionPath = projectData.CSSolutionPath;
             CSProjName = projectData.CSProjName;
-            Modules = projectData.Modules.Select(m => new Module() { Name = m.Name, Version = m.Version }).ToList();
+            Modules = new List<Module>();
             StartScene = projectData.StartScene;
         }
     }

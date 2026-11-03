@@ -7,14 +7,6 @@ namespace TypeD.Models.Interfaces
     /// <summary>Model that builds, runs and generates code for projects.</summary>
     public interface IProjectModel : IModel
     {
-        /// <summary>Adds a module to a project.</summary>
-        /// <param name="project">The project.</param>
-        /// <param name="module">The module to add.</param>
-        public void AddModule(Project project, Module module);
-        /// <summary>Removes a module from a project.</summary>
-        /// <param name="project">The project.</param>
-        /// <param name="moduleName">The name of the module to remove.</param>
-        public void RemoveModule(Project project, string moduleName);
         /// <summary>Builds a project.</summary>
         /// <param name="project">The project.</param>
         /// <returns><c>true</c> if the build succeeded.</returns>

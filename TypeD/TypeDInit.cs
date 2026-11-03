@@ -21,6 +21,7 @@ namespace TypeD
             resourceModel.Add(new List<object>() {
             //Models
                 new ModuleModel(),
+                new TyperModel(),
                 new ProjectModel(),
                 new HookModel(),
                 new SaveModel(),

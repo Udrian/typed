@@ -78,23 +78,7 @@ namespace TypeD.Models.Providers
             SaveModel.AddSave<ProjectSaveContext>(project);
             ProjectModel.InitAndSaveCode(project, new ProgramCode());
 
-            var modulesToAdd = new List<string>() { /*"TypeOCore", "TypeDCore", "TypeODesktop", "TypeOBasic2d", "TypeOSDL", "TypeDSDL"*/ };
-            var moduleList = await ModuleProvider.List(project);
-
-            progress(15);
-
-            var moduleAddProgressStep = 15 / (modulesToAdd.Count == 0 ? 1 : modulesToAdd.Count);
-            var moduleAddProgress = 0;
-            foreach(var moduleToAdd in modulesToAdd)
-            {
-                var addModuleVersion = moduleList.LastOrDefault(m => { return m.Name == moduleToAdd; })?.Versions[0];
-
-                var module = ModuleProvider.Create(moduleToAdd, addModuleVersion.Version);
-                ProjectModel.AddModule(project, module);
-                moduleAddProgress += moduleAddProgressStep;
-                progress(15 + moduleAddProgress);
-            }
-
+            await ModuleModel.Initialize(project);
             progress(30);
             //Save and load the module first so we can call the project creation hook
             await SaveModel.Save(project);
@@ -129,18 +113,10 @@ namespace TypeD.Models.Providers
             ResourceModel.Get<IIconModel>().Sync(project);
             TypeDInit.ProjectLoad(project, ResourceModel);
 
-            var downloadProgressStep = 99 / (project.Modules.Count == 0 ? 1 : project.Modules.Count);
-            var downloadProgress = 0;
             // Prepare
-            foreach (var module in project.Modules)
-            {
-                await ModuleModel.Download(module, (bytes, mProgress, totalBytes) => {
-                    progress(downloadProgress + (int)(downloadProgressStep * (mProgress / 100f)));
-                });
-                ModuleModel.LoadAssembly(project, module);
-                downloadProgress += downloadProgressStep;
-                progress(downloadProgress);
-            }
+            progress(10);
+            await ModuleModel.Resolve(project);
+            progress(99);
 
             ResourceModel.Get<IIconModel>().Sync(project);
 
@@ -181,7 +157,6 @@ namespace TypeD.Models.Providers
                     ProjectName = project.ProjectName,
                     CSSolutionPath = project.CSSolutionPath,
                     CSProjName = project.CSProjName,
-                    Modules = project.Modules.Select(m => new ModuleDTO() { Name = m.Name, Version = m.Version }).ToList(),
                     StartScene = project.StartScene
                 }, project.ProjectFilePath);
             });
