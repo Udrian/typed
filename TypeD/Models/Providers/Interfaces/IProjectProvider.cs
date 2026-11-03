@@ -19,8 +19,9 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="projectFilePath">The project file path.</param>
         /// <param name="progress">Callback reporting progress.</param>
         /// <param name="regenerateComponentCode">Whether component code is regenerated.</param>
+        /// <param name="report">Callback reporting what is being done, including subtasks like fetching and building modules.</param>
         /// <returns>The loaded project.</returns>
-        public Task<Project> Load(string projectFilePath, Action<int> progress, bool regenerateComponentCode = true);
+        public Task<Project> Load(string projectFilePath, Action<int> progress, bool regenerateComponentCode = true, Action<ProgressUpdate> report = null);
         /// <summary>Saves a project.</summary>
         /// <param name="project">The project.</param>
         public Task Save(Project project);

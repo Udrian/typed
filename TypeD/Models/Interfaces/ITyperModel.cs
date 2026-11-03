@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TypeD.Models.Data;
@@ -38,7 +39,8 @@ namespace TypeD.Models.Interfaces
         public Task<bool> RemoveOverride(string projectPath, string name);
         /// <summary>Fetches missing dependencies and updates the solution and project files.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
-        public Task<bool> Resolve(string projectPath);
+        /// <param name="onOutput">Called with each line typer reports while resolving, for example git clone progress.</param>
+        public Task<bool> Resolve(string projectPath, Action<string> onOutput = null);
         /// <summary>Creates a new module project.</summary>
         /// <param name="name">Name of the module.</param>
         /// <param name="outputPath">Folder to create the module folder in.</param>

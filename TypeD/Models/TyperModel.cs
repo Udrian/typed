@@ -74,9 +74,9 @@ namespace TypeD.Models
             return (await Run("removeoverride", "-p", projectPath, "-n", name)).Success;
         }
 
-        public async Task<bool> Resolve(string projectPath)
+        public async Task<bool> Resolve(string projectPath, Action<string> onOutput = null)
         {
-            return (await Run("dependency", "-p", projectPath)).Success;
+            return (await Run(onOutput, "dependency", "-p", projectPath)).Success;
         }
 
         public async Task<bool> CreateModule(string name, string outputPath, IEnumerable<string> dependencies = null)
@@ -106,7 +106,12 @@ namespace TypeD.Models
             }
         }
 
-        private async Task<TyperResult> Run(params string[] args)
+        private Task<TyperResult> Run(params string[] args)
+        {
+            return Run(null, args);
+        }
+
+        private async Task<TyperResult> Run(Action<string> onOutput, params string[] args)
         {
             if (!IsAvailable)
             {
@@ -132,11 +137,23 @@ namespace TypeD.Models
                 using var process = Process.Start(startInfo);
                 process.StandardInput.Close();
                 var output = process.StandardOutput.ReadToEndAsync();
-                var error = process.StandardError.ReadToEndAsync();
+                var errorLines = new List<string>();
+                var error = Task.Run(async () =>
+                {
+                    string line;
+                    while ((line = await process.StandardError.ReadLineAsync()) != null)
+                    {
+                        line = line.Trim();
+                        if (line.Length == 0) continue;
+                        errorLines.Add(line);
+                        try { onOutput?.Invoke(line); } catch { }
+                    }
+                });
                 await process.WaitForExitAsync();
+                await error;
 
                 LogModel?.Log($"typer {string.Join(" ", args)}");
-                foreach (var line in (await error).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                foreach (var line in errorLines)
                 {
                     LogModel?.Log(line);
                 }

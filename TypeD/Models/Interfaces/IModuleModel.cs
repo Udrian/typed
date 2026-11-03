@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using TypeD.Models.Data;
 
@@ -11,8 +12,9 @@ namespace TypeD.Models.Interfaces
         public Task Initialize(Project project);
         /// <summary>Resolves the project's dependencies with typer, then builds and loads the resulting modules. Does not save the project.</summary>
         /// <param name="project">The project.</param>
+        /// <param name="report">Called with the progress of the resolve, including the git fetches and module builds it runs.</param>
         /// <returns><c>true</c> if typer resolved the dependencies.</returns>
-        public Task<bool> Resolve(Project project);
+        public Task<bool> Resolve(Project project, Action<ProgressUpdate> report = null);
         /// <summary>Adds a module to the project.</summary>
         /// <param name="project">The project.</param>
         /// <param name="author">The author (GitHub owner) of the module.</param>

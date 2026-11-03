@@ -57,13 +57,19 @@ namespace TypeD.Models
             await File.WriteAllTextAsync(typeOPath, JsonSerializer.Serialize(typeO, new JsonSerializerOptions { WriteIndented = true }));
         }
 
-        public async Task<bool> Resolve(Project project)
+        public async Task<bool> Resolve(Project project, Action<ProgressUpdate> report = null)
         {
-            return await Resolve(project, false);
+            return await Resolve(project, false, report);
         }
 
-        private async Task<bool> Resolve(Project project, bool force)
+        private async Task<bool> Resolve(Project project, bool force, Action<ProgressUpdate> report = null)
         {
+            void Report(int progress, string message, string subTask = null, int? subProgress = null)
+            {
+                report?.Invoke(new ProgressUpdate(progress, message, subTask, subProgress));
+            }
+
+            Report(0, "Checking module configuration");
             await Initialize(project);
 
             // Nothing that typer or the build depends on has changed since the last resolve, so reuse that result
@@ -74,14 +80,17 @@ namespace TypeD.Models
             bool resolved;
             if (resolveCurrent)
             {
+                Report(40, "Dependencies are up to date");
                 SetModules(project, cachedModules);
                 resolved = true;
             }
             else
             {
-                resolved = await TyperModel.Resolve(project.Location);
+                Report(5, "Resolving dependencies", "Starting typer");
+                resolved = await TyperModel.Resolve(project.Location, line => Report(10, "Resolving dependencies", line));
                 if (resolved)
                 {
+                    Report(35, "Synchronizing modules", "Reading resolved dependencies");
                     await SyncModules(project);
                 }
                 else
@@ -91,27 +100,37 @@ namespace TypeD.Models
             }
 
             var buildCurrent = resolveCurrent && cache.BuildStamp == BuildStamp(project) && project.Modules.All(IsBuilt);
+            var moduleCount = project.Modules.Count;
+            var moduleIndex = 0;
             foreach (var module in project.Modules)
             {
+                var moduleStart = 40 + 55 * moduleIndex / Math.Max(moduleCount, 1);
+                var step = $"Module {moduleIndex + 1}/{moduleCount}: {module.Name}";
                 if (!buildCurrent)
                 {
                     // Local modules are under development so keep their own solution and dependencies in sync as well
                     if (resolved && !resolveCurrent && module.IsLocal && File.Exists(module.TypeOPath))
                     {
-                        await TyperModel.Resolve(module.ModulePath);
+                        Report(moduleStart, "Preparing modules", $"Resolving dependencies of {module.Name}", 0);
+                        await TyperModel.Resolve(module.ModulePath, line => Report(moduleStart, "Preparing modules", $"{module.Name}: {line}"));
                     }
+                    Report(moduleStart, "Building modules", $"Building {module.Name} ({step})", 100 * moduleIndex / Math.Max(moduleCount, 1));
                     await Build(module);
                 }
                 if (module.Assembly == null)
                 {
+                    Report(moduleStart, "Loading modules", $"Loading {module.Name}", 100 * (moduleIndex + 1) / Math.Max(moduleCount, 1));
                     LoadAssembly(project, module);
                 }
+                moduleIndex++;
             }
 
             if (resolved)
             {
+                Report(95, "Saving module cache");
                 WriteCache(project, project.Modules.All(IsBuilt));
             }
+            Report(100, "Modules ready");
             return resolved;
         }
 

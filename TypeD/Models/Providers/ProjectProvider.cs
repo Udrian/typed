@@ -102,31 +102,45 @@ namespace TypeD.Models.Providers
             return project;
         }
 
-        public async Task<Project> Load(string projectFilePath, Action<int> progress, bool regenerateComponentCode = true)
+        public async Task<Project> Load(string projectFilePath, Action<int> progress, bool regenerateComponentCode = true, Action<ProgressUpdate> report = null)
         {
             if (!projectFilePath.EndsWith(".typeo")) return null;
 
-            progress(0);
+            void Report(int percent, string message, string subTask = null, int? subProgress = null)
+            {
+                progress(percent);
+                report?.Invoke(new ProgressUpdate(percent, message, subTask, subProgress));
+            }
+
+            Report(0, "Reading project file");
             var projectData = JSON.Deserialize<ProjectDTO>(projectFilePath);
             var project = new Project(Path.GetDirectoryName(projectFilePath), projectData);
 
+            Report(5, "Initializing project");
             ResourceModel.Get<IIconModel>().Sync(project);
             TypeDInit.ProjectLoad(project, ResourceModel);
 
             // Prepare
-            progress(10);
-            await ModuleModel.Resolve(project);
-            progress(99);
+            Report(10, "Resolving modules");
+            await ModuleModel.Resolve(project, update =>
+            {
+                // Modules take up 10-70% of the load
+                Report(10 + (int)(60 * (update.Progress / 100f)), update.Message, update.SubTask, update.SubProgress);
+            });
 
+            Report(70, "Loading assemblies");
             ResourceModel.Get<IIconModel>().Sync(project);
 
             ProjectModel.LoadAssembly(project);
+            Report(78, "Building component tree");
             ProjectModel.BuildComponentTree(project);
 
+            Report(85, "Restoring project");
             await RestoreModel.Restore(project);
 
             if (regenerateComponentCode)
             {
+                Report(90, "Generating component code");
                 ProjectModel.StopWatching(project);
                 try
                 {
@@ -136,6 +150,7 @@ namespace TypeD.Models.Providers
                         ProjectModel.InitAndSaveCode(project, component.Template.Code);
                     }
 
+                    Report(96, "Saving project");
                     await SaveModel.Save(project);
                 }
                 finally
@@ -144,7 +159,7 @@ namespace TypeD.Models.Providers
                 }
             }
 
-            progress(100);
+            Report(100, "Project loaded");
             return project;
         }
 
