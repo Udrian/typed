@@ -195,8 +195,10 @@ namespace TypeD.Models
         {
             if (IsBuilt(module) && (!module.IsLocal || module.Assembly != null)) return true;
 
-            var solution = Path.Combine(module.ModulePath, $"{module.Name}.sln");
-            var target = File.Exists(solution) ? solution : Path.Combine(module.ModulePath, module.Name, $"{module.Name}.csproj");
+            var solutionSln = Path.Combine(module.ModulePath, $"{module.Name}.sln");
+            var solutionSlnx = Path.Combine(module.ModulePath, $"{module.Name}.slnx");
+            var solution = File.Exists(solutionSln) ? solutionSln : (File.Exists(solutionSlnx) ? solutionSlnx : null);
+            var target = solution != null ? solution : Path.Combine(module.ModulePath, module.Name, $"{module.Name}.csproj");
             if (!File.Exists(target)) return false;
 
             var startInfo = new ProcessStartInfo
@@ -375,7 +377,18 @@ namespace TypeD.Models
             }
             foreach (var module in modules) hash.Append(module.Name).Append(module.Version);
             AddStamp(project.ProjectCSProjPath);
-            AddStamp(Path.Combine(project.Location, $"{Path.GetFileNameWithoutExtension(project.CSSolutionPath)}.sln"));
+            
+            // Check for both .sln and .slnx files
+            var basePath = Path.Combine(project.Location, Path.GetFileNameWithoutExtension(project.CSSolutionPath));
+            var slnPath = basePath + ".sln";
+            var slnxPath = basePath + ".slnx";
+            if (File.Exists(slnPath))
+                AddStamp(slnPath);
+            else if (File.Exists(slnxPath))
+                AddStamp(slnxPath);
+            else
+                AddStamp(slnPath); // Default to .sln path even if it doesn't exist (for hashing consistency)
+            
             return Hash(hash.ToString());
         }
 
@@ -384,7 +397,7 @@ namespace TypeD.Models
         {
             var hash = new StringBuilder();
             var skipped = new[] { "bin", "obj", ".git", ".vs", "typer", "node_modules" };
-            var extensions = new[] { ".cs", ".csproj", ".axaml", ".xaml", ".resx", ".json", ".props", ".targets", ".sln" };
+            var extensions = new[] { ".cs", ".csproj", ".axaml", ".xaml", ".resx", ".json", ".props", ".targets", ".sln", ".slnx" };
             foreach (var module in project.Modules.Where(m => m.IsLocal).OrderBy(m => m.Name))
             {
                 hash.Append(module.Name);

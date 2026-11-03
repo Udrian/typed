@@ -224,34 +224,59 @@ namespace TypeD.Models.Providers
         }
 
         // Internal
+        /// <summary>
+        /// Finds the actual solution file, checking for both .sln and .slnx files.
+        /// Returns the path to whichever exists, or null if neither exists.
+        /// </summary>
+        private string GetSolutionFilePath(Project project)
+        {
+            var basePath = Path.Combine(project.Location, Path.GetFileNameWithoutExtension(project.CSSolutionPath));
+            var slnPath = basePath + ".sln";
+            var slnxPath = basePath + ".slnx";
+            
+            if (File.Exists(slnPath))
+                return slnPath;
+            if (File.Exists(slnxPath))
+                return slnxPath;
+            
+            return null;
+        }
+
         private async Task CreateSolution(Project project)
         {
-            var solutionFilePath = Path.Combine(project.Location, Path.GetFileName(project.CSSolutionPath));
-            CMD.ReportOutput($"[ProjectCreation] Creating solution at: {solutionFilePath}");
+            var basePath = Path.Combine(project.Location, Path.GetFileNameWithoutExtension(project.CSSolutionPath));
+            var slnPath = basePath + ".sln";
+            var slnxPath = basePath + ".slnx";
             
-            if (!File.Exists(solutionFilePath))
+            CMD.ReportOutput($"[ProjectCreation] Creating solution at: {basePath}");
+            
+            var existingSolution = GetSolutionFilePath(project);
+            if (existingSolution == null)
             {
                 CMD.ReportOutput($"[ProjectCreation] Solution file does not exist, running dotnet new sln");
                 await CMD.Run(new string[] {
                     $"cd \"{project.Location}\"",
-                    $"dotnet new sln --name \"{Path.GetFileNameWithoutExtension(project.CSSolutionPath)}\" --use-legacy-format"
+                    $"dotnet new sln --name \"{Path.GetFileNameWithoutExtension(project.CSSolutionPath)}\""
                 });
                 
                 // Wait a bit for file system to sync
                 await Task.Delay(500);
                 
-                if (!File.Exists(solutionFilePath))
+                existingSolution = GetSolutionFilePath(project);
+                if (existingSolution == null)
                 {
-                    CMD.ReportOutput($"[ProjectCreation] ERROR: Solution file was not created at {solutionFilePath}");
+                    CMD.ReportOutput($"[ProjectCreation] ERROR: Solution file was not created (checked for .sln and .slnx)");
                 }
                 else
                 {
-                    CMD.ReportOutput($"[ProjectCreation] Solution file created successfully");
+                    var fileType = Path.GetExtension(existingSolution);
+                    CMD.ReportOutput($"[ProjectCreation] Solution file created successfully ({fileType})");
                 }
             }
             else
             {
-                CMD.ReportOutput($"[ProjectCreation] Solution file already exists");
+                var fileType = Path.GetExtension(existingSolution);
+                CMD.ReportOutput($"[ProjectCreation] Solution file already exists ({fileType})");
             }
         }
 
@@ -263,6 +288,22 @@ namespace TypeD.Models.Providers
                 CMD.ReportOutput($"[ProjectCreation] Project name: {project.ProjectName}");
                 CMD.ReportOutput($"[ProjectCreation] CS Project name: {project.CSProjName}");
                 CMD.ReportOutput($"[ProjectCreation] Expected .csproj path: {project.ProjectCSProjPath}");
+
+                // Verify solution file exists before continuing
+                var solutionFilePath = GetSolutionFilePath(project);
+                if (solutionFilePath == null)
+                {
+                    CMD.ReportOutput($"[ProjectCreation] ERROR: Solution file not found");
+                    CMD.ReportOutput($"[ProjectCreation] Attempting to create it again...");
+                    await CreateSolution(project);
+                    
+                    // Verify it was created
+                    solutionFilePath = GetSolutionFilePath(project);
+                    if (solutionFilePath == null)
+                    {
+                        throw new FileNotFoundException($"Solution file was not created. Please check that 'dotnet new sln' command works in your environment.");
+                    }
+                }
 
                 // Create the project subdirectory if it doesn't exist
                 var projectDir = Path.Combine(project.Location, project.CSProjName);
@@ -320,11 +361,20 @@ namespace TypeD.Models.Providers
 
                 CMD.ReportOutput($"[ProjectCreation] .csproj file found, adding to solution");
 
+                // Verify solution file still exists before adding project
+                solutionFilePath = GetSolutionFilePath(project);
+                if (solutionFilePath == null)
+                {
+                    throw new FileNotFoundException($"Solution file disappeared");
+                }
+
                 // Add the project to the solution
+                // Use the actual solution filename (whether it's .sln or .slnx)
+                var solutionFileName = Path.GetFileName(solutionFilePath);
                 await CMD.Run(new string[]
                 {
                     $"cd \"{project.Location}\"",
-                    $"dotnet sln \"{Path.GetFileName(project.CSSolutionPath)}\" add \"{Path.Combine(project.CSProjName, project.CSProjName + ".csproj")}\""
+                    $"dotnet sln \"{solutionFileName}\" add \"{Path.Combine(project.CSProjName, project.CSProjName + ".csproj")}\""
                 });
 
                 CMD.ReportOutput($"[ProjectCreation] Project added to solution");
