@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TypeD.Code;
@@ -57,30 +59,58 @@ namespace TypeD.Models
 
         public async Task<bool> Resolve(Project project)
         {
+            return await Resolve(project, false);
+        }
+
+        private async Task<bool> Resolve(Project project, bool force)
+        {
             await Initialize(project);
 
-            var resolved = await TyperModel.Resolve(project.Location);
-            if (resolved)
+            // Nothing that typer or the build depends on has changed since the last resolve, so reuse that result
+            var cache = force ? null : ReadCache(project);
+            var cachedModules = cache?.Modules?.Select(m => new Module() { Name = m.Name, Version = m.Version }).ToList();
+            var resolveCurrent = cache != null && cachedModules.Count > 0 && cache.ResolveStamp == ResolveStamp(project, cachedModules);
+
+            bool resolved;
+            if (resolveCurrent)
             {
-                await SyncModules(project);
+                SetModules(project, cachedModules);
+                resolved = true;
             }
             else
             {
-                LogModel.Log("Could not resolve dependencies, using the modules already known by the project");
+                resolved = await TyperModel.Resolve(project.Location);
+                if (resolved)
+                {
+                    await SyncModules(project);
+                }
+                else
+                {
+                    LogModel.Log("Could not resolve dependencies, using the modules already known by the project");
+                }
             }
 
+            var buildCurrent = resolveCurrent && cache.BuildStamp == BuildStamp(project) && project.Modules.All(IsBuilt);
             foreach (var module in project.Modules)
             {
-                // Local modules are under development so keep their own solution and dependencies in sync as well
-                if (resolved && module.IsLocal && File.Exists(module.TypeOPath))
+                if (!buildCurrent)
                 {
-                    await TyperModel.Resolve(module.ModulePath);
+                    // Local modules are under development so keep their own solution and dependencies in sync as well
+                    if (resolved && !resolveCurrent && module.IsLocal && File.Exists(module.TypeOPath))
+                    {
+                        await TyperModel.Resolve(module.ModulePath);
+                    }
+                    await Build(module);
                 }
-                await Build(module);
                 if (module.Assembly == null)
                 {
                     LoadAssembly(project, module);
                 }
+            }
+
+            if (resolved)
+            {
+                WriteCache(project, project.Modules.All(IsBuilt));
             }
             return resolved;
         }
@@ -202,7 +232,7 @@ namespace TypeD.Models
         {
             if (!changed) return false;
 
-            var resolved = await Resolve(project);
+            var resolved = await Resolve(project, true);
             SaveModel.AddSave<ProjectSaveContext>(project);
             ResourceModel.Get<IProjectModel>().InitAndSaveCode(project, new ProgramCode());
             return resolved;
@@ -235,12 +265,135 @@ namespace TypeD.Models
             }
             await Collect(project.Location);
 
+            SetModules(project, modules);
+        }
+
+        // Replaces the project's modules, keeping the already loaded instances of modules that are still used
+        private void SetModules(Project project, List<Module> modules)
+        {
+            for (var i = 0; i < modules.Count; i++)
+            {
+                modules[i] = project.Modules.Find(m => m.Name == modules[i].Name && m.Version == modules[i].Version) ?? modules[i];
+            }
+
             foreach (var removed in project.Modules.Where(m => !modules.Contains(m)))
             {
                 UnloadAssembly(removed);
             }
             project.Modules.Clear();
             project.Modules.AddRange(modules);
+        }
+
+        // Cache
+        private class ModuleCache
+        {
+            public string ResolveStamp { get; set; }
+            public string BuildStamp { get; set; }
+            public List<ModuleCacheEntry> Modules { get; set; } = new List<ModuleCacheEntry>();
+        }
+
+        private class ModuleCacheEntry
+        {
+            public string Name { get; set; }
+            public string Version { get; set; }
+        }
+
+        private static string CachePath(Project project)
+        {
+            return Path.Combine(project.ProjectTypeOPath, "cache", "modules.json");
+        }
+
+        private ModuleCache ReadCache(Project project)
+        {
+            try
+            {
+                var path = CachePath(project);
+                return File.Exists(path) ? JsonSerializer.Deserialize<ModuleCache>(File.ReadAllText(path)) : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private void WriteCache(Project project, bool built)
+        {
+            try
+            {
+                var cache = new ModuleCache()
+                {
+                    ResolveStamp = ResolveStamp(project, project.Modules),
+                    BuildStamp = built ? BuildStamp(project) : null,
+                    Modules = project.Modules.Select(m => new ModuleCacheEntry() { Name = m.Name, Version = m.Version }).ToList()
+                };
+                Directory.CreateDirectory(Path.GetDirectoryName(CachePath(project)));
+                File.WriteAllText(CachePath(project), JsonSerializer.Serialize(cache));
+            }
+            catch (Exception e)
+            {
+                LogModel.Log($"Could not write the module cache: {e.Message}");
+            }
+        }
+
+        // Everything the dependency resolving depends on: the product and override files of the project and its modules, and the project files typer writes to
+        private static string ResolveStamp(Project project, IEnumerable<Module> modules)
+        {
+            var hash = new StringBuilder();
+            void AddFile(string path)
+            {
+                hash.Append(path).Append(File.Exists(path) ? File.ReadAllText(path) : "<missing>");
+            }
+            void AddStamp(string path)
+            {
+                var info = new FileInfo(path);
+                hash.Append(path).Append(info.Exists ? $"{info.Length}:{info.LastWriteTimeUtc.Ticks}" : "<missing>");
+            }
+
+            foreach (var folder in new[] { project.Location }.Concat(modules.Select(m => m.ModulePath)))
+            {
+                AddFile(Path.Combine(folder, "typeo.json"));
+                AddFile(Path.Combine(folder, "typeo_override.json"));
+            }
+            foreach (var module in modules) hash.Append(module.Name).Append(module.Version);
+            AddStamp(project.ProjectCSProjPath);
+            AddStamp(Path.Combine(project.Location, $"{Path.GetFileNameWithoutExtension(project.CSSolutionPath)}.sln"));
+            return Hash(hash.ToString());
+        }
+
+        // The source files of every local module, since those are the ones that change between loads; released modules are immutable
+        private static string BuildStamp(Project project)
+        {
+            var hash = new StringBuilder();
+            var skipped = new[] { "bin", "obj", ".git", ".vs", "typer", "node_modules" };
+            var extensions = new[] { ".cs", ".csproj", ".axaml", ".xaml", ".resx", ".json", ".props", ".targets", ".sln" };
+            foreach (var module in project.Modules.Where(m => m.IsLocal).OrderBy(m => m.Name))
+            {
+                hash.Append(module.Name);
+                if (!Directory.Exists(module.ModulePath)) continue;
+
+                var pending = new Stack<string>();
+                pending.Push(module.ModulePath);
+                while (pending.Count > 0)
+                {
+                    var folder = pending.Pop();
+                    foreach (var directory in Directory.EnumerateDirectories(folder).OrderBy(d => d))
+                    {
+                        if (!skipped.Contains(Path.GetFileName(directory), StringComparer.OrdinalIgnoreCase)) pending.Push(directory);
+                    }
+                    foreach (var file in Directory.EnumerateFiles(folder).OrderBy(f => f))
+                    {
+                        if (!extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)) continue;
+                        var info = new FileInfo(file);
+                        hash.Append(file).Append(info.Length).Append(info.LastWriteTimeUtc.Ticks);
+                    }
+                }
+            }
+            return Hash(hash.ToString());
+        }
+
+        private static string Hash(string value)
+        {
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
         }
 
         private bool IsBuilt(Module module)
