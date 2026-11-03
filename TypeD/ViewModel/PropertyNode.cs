@@ -9,6 +9,8 @@ namespace TypeD.ViewModel
     /// </summary>
     public class PropertyNode : ViewModelBase
     {
+        private string _validationError;
+
         /// <summary>Gets the component the property belongs to.</summary>
         public Component Component { get; private set; }
         /// <summary>Gets the property shown by the node.</summary>
@@ -38,6 +40,22 @@ namespace TypeD.ViewModel
         public string Description { get => Property.Description; }
         /// <summary>Gets a value indicating whether the property or its component is read-only.</summary>
         public bool ReadOnly { get => Property.ReadOnly || Component.ReadOnly; }
+        /// <summary>Gets or sets the validation error message for this property. Set to null or empty string to clear errors.</summary>
+        public string ValidationError
+        {
+            get => _validationError;
+            set
+            {
+                if (_validationError != value)
+                {
+                    _validationError = value;
+                    OnPropertyChanged(nameof(ValidationError));
+                    OnPropertyChanged(nameof(HasValidationError));
+                }
+            }
+        }
+        /// <summary>Gets whether this property has a validation error.</summary>
+        public bool HasValidationError => !string.IsNullOrEmpty(ValidationError);
         /// <summary>Called with this node and the new value when the user changes the value.</summary>
         public Action<PropertyNode, object> ValueChanged;
 
