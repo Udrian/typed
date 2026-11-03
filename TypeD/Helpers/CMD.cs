@@ -38,6 +38,7 @@ namespace TypeD.Helpers
             info.RedirectStandardInput = true;
             info.UseShellExecute = false;
             info.RedirectStandardOutput = true;
+            info.RedirectStandardError = true;
             info.CreateNoWindow = true;
 
             process.StartInfo = info;
@@ -47,13 +48,18 @@ namespace TypeD.Helpers
             {
                 using (StreamWriter sw = process.StandardInput)
                 using (StreamReader sr = process.StandardOutput)
+                using (StreamReader se = process.StandardError)
                 {
                     foreach (var cmd in cmds) {
                         WriteStream(sw, cmd);
                     }
                     WriteStream(sw, "exit");
 
-                    ReadStream(sr);
+                    // Read output and error in parallel
+                    var outputTask = Task.Run(() => ReadStream(sr, false));
+                    var errorTask = Task.Run(() => ReadStream(se, true));
+                    
+                    Task.WaitAll(outputTask, errorTask);
                 }
                 process.WaitForExit();
             });
@@ -70,7 +76,7 @@ namespace TypeD.Helpers
             }
         }
 
-        private static void ReadStream(StreamReader sr)
+        private static void ReadStream(StreamReader sr, bool isError)
         {
             if (sr.BaseStream.CanRead)
             {
@@ -78,9 +84,15 @@ namespace TypeD.Helpers
                 {
                     var line = sr.ReadLine();
                     if(line != null)
-                        ReportOutput(line);
+                    {
+                        if (isError)
+                            ReportOutput($"[ERROR] {line}");
+                        else
+                            ReportOutput(line);
+                    }
                 }
             }
         }
     }
 }
+

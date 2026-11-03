@@ -1,4 +1,7 @@
-﻿using System.Xml.Linq;
+using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
+using System.Xml.Linq;
 using TypeD.Code;
 using TypeD.Helpers;
 using TypeD.Models.Data;
@@ -42,9 +45,13 @@ namespace TypeD.Models.Providers
         }
 
         // Functions
-        public async Task<Project> Create(string projectName, string location, string csSolutionPath, string csProjName, Action<int> progress)
+        public async Task<Project> Create(string projectName, string location, string csSolutionPath, string csProjName, ObservableCollection<(string Author, string Name, string Version)> modulesToAdd = null, Action<int> progress = null, Action<ProgressUpdate> report = null)
         {
+            progress = progress ?? (_ => { });
+            report = report ?? (_ => { });
             progress(0);
+            report(new ProgressUpdate(0, "Validating project settings"));
+            
             // Validate
             if (string.IsNullOrEmpty(location)) location = @".\";
             if (string.IsNullOrEmpty(csSolutionPath)) csSolutionPath = @$".\{projectName}.sln";
@@ -64,32 +71,71 @@ namespace TypeD.Models.Providers
             }
             );
 
+            report(new ProgressUpdate(1, "Creating project directory"));
             if (!Directory.Exists(project.Location))
             {
                 Directory.CreateDirectory(project.Location);
             }
 
+            report(new ProgressUpdate(3, "Creating solution file"));
             await CreateSolution(project);
             progress(5);
+            
+            report(new ProgressUpdate(5, "Creating C# project"));
             await CreateProject(project);
             progress(10);
 
             // Prepare
+            report(new ProgressUpdate(10, "Initializing project structure"));
             SaveModel.AddSave<ProjectSaveContext>(project);
             ProjectModel.InitAndSaveCode(project, new ProgramCode());
 
+            report(new ProgressUpdate(15, "Initializing modules"));
             await ModuleModel.Initialize(project);
             progress(30);
+            
+            report(new ProgressUpdate(30, "Saving project"));
             //Save and load the module first so we can call the project creation hook
             await SaveModel.Save(project);
             progress(40);
             
+            report(new ProgressUpdate(40, "Loading project"));
             project = await Load(project.ProjectFilePath, (loadProgress) =>
             {
                 progress(40 + (int)(35 * (loadProgress / 100f)));
-            }, false);
+            }, false, update =>
+            {
+                report(new ProgressUpdate(40 + (int)(35 * (update.Progress / 100f)), "Loading project", update.SubTask, update.SubProgress));
+            });
             
             progress(75);
+
+            // Add selected modules if provided
+            if (modulesToAdd != null && modulesToAdd.Count > 0)
+            {
+                report(new ProgressUpdate(75, $"Adding {modulesToAdd.Count} modules"));
+                int moduleIndex = 0;
+                foreach (var module in modulesToAdd)
+                {
+                    moduleIndex++;
+                    report(new ProgressUpdate(75, $"Adding modules", $"{module.Name} ({moduleIndex}/{modulesToAdd.Count})", moduleIndex * 100 / modulesToAdd.Count));
+                    try
+                    {
+                        await ModuleModel.Add(project, module.Author, module.Name, module.Version);
+                    }
+                    catch
+                    {
+                        // Continue if a module fails to add
+                    }
+                }
+                
+                // Reload the project to include the added modules
+                report(new ProgressUpdate(90, "Saving project with modules"));
+                await SaveModel.Save(project);
+                
+                report(new ProgressUpdate(95, "Reloading project"));
+                project = await Load(project.ProjectFilePath, _ => { }, false);
+            }
 
             HookModel.Shoot(new ProjectCreateHook(project));
             progress(80);
@@ -180,12 +226,32 @@ namespace TypeD.Models.Providers
         // Internal
         private async Task CreateSolution(Project project)
         {
-            if (!File.Exists(Path.Combine(project.Location, project.CSSolutionPath)))
+            var solutionFilePath = Path.Combine(project.Location, Path.GetFileName(project.CSSolutionPath));
+            CMD.ReportOutput($"[ProjectCreation] Creating solution at: {solutionFilePath}");
+            
+            if (!File.Exists(solutionFilePath))
             {
+                CMD.ReportOutput($"[ProjectCreation] Solution file does not exist, running dotnet new sln");
                 await CMD.Run(new string[] {
                     $"cd \"{project.Location}\"",
-                    $"dotnet new sln --name \"{Path.GetFileNameWithoutExtension(project.CSSolutionPath)}\""
+                    $"dotnet new sln --name \"{Path.GetFileNameWithoutExtension(project.CSSolutionPath)}\" --use-legacy-format"
                 });
+                
+                // Wait a bit for file system to sync
+                await Task.Delay(500);
+                
+                if (!File.Exists(solutionFilePath))
+                {
+                    CMD.ReportOutput($"[ProjectCreation] ERROR: Solution file was not created at {solutionFilePath}");
+                }
+                else
+                {
+                    CMD.ReportOutput($"[ProjectCreation] Solution file created successfully");
+                }
+            }
+            else
+            {
+                CMD.ReportOutput($"[ProjectCreation] Solution file already exists");
             }
         }
 
@@ -193,12 +259,75 @@ namespace TypeD.Models.Providers
         {
             if (!File.Exists(project.ProjectCSProjPath))
             {
+                CMD.ReportOutput($"[ProjectCreation] Creating project at: {project.Location}");
+                CMD.ReportOutput($"[ProjectCreation] Project name: {project.ProjectName}");
+                CMD.ReportOutput($"[ProjectCreation] CS Project name: {project.CSProjName}");
+                CMD.ReportOutput($"[ProjectCreation] Expected .csproj path: {project.ProjectCSProjPath}");
+
+                // Create the project subdirectory if it doesn't exist
+                var projectDir = Path.Combine(project.Location, project.CSProjName);
+                CMD.ReportOutput($"[ProjectCreation] Creating directory: {projectDir}");
+                
+                if (!Directory.Exists(projectDir))
+                {
+                    Directory.CreateDirectory(projectDir);
+                    CMD.ReportOutput($"[ProjectCreation] Directory created");
+                }
+                else
+                {
+                    CMD.ReportOutput($"[ProjectCreation] Directory already exists");
+                }
+
+                CMD.ReportOutput($"[ProjectCreation] Running dotnet new console (.NET 10.0) in: {projectDir}");
+                
+                // Run commands one at a time for better error visibility
+                // Using .NET 10.0 instead of 7.0 since it's the latest stable version
+                await CMD.Run(new string[]
+                {
+                    $"cd \"{projectDir}\"",
+                    $"dotnet new console --language \"C#\" --framework \"net10.0\""
+                });
+
+                CMD.ReportOutput($"[ProjectCreation] dotnet new console completed");
+
+                // Wait a bit longer for file system to sync (important for OneDrive)
+                await Task.Delay(500);
+                
+                // Check if the project file was created
+                if (!File.Exists(project.ProjectCSProjPath))
+                {
+                    CMD.ReportOutput($"[ProjectCreation] ERROR: dotnet new console did not create .csproj file!");
+                    CMD.ReportOutput($"[ProjectCreation] Listing directory contents:");
+                    try
+                    {
+                        var files = Directory.GetFiles(projectDir);
+                        if (files.Length == 0)
+                        {
+                            CMD.ReportOutput($"[ProjectCreation] Directory is empty!");
+                        }
+                        foreach (var file in files)
+                        {
+                            CMD.ReportOutput($"[ProjectCreation]   - {Path.GetFileName(file)}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        CMD.ReportOutput($"[ProjectCreation]   Error listing files: {ex.Message}");
+                    }
+                    
+                    throw new FileNotFoundException($"Project file was not created at {project.ProjectCSProjPath}. The 'dotnet new console' command may have failed. Check that .NET SDK 10.0 is properly installed and the path doesn't contain special characters or is not under OneDrive sync.");
+                }
+
+                CMD.ReportOutput($"[ProjectCreation] .csproj file found, adding to solution");
+
+                // Add the project to the solution
                 await CMD.Run(new string[]
                 {
                     $"cd \"{project.Location}\"",
-                    $"dotnet new console --language \"C#\" --framework \"net7.0\" -n \"{project.CSProjName}\"",
-                    $"dotnet sln \"{Path.GetFileName(project.CSSolutionPath)}\" add \"{project.CSProjName}\""
+                    $"dotnet sln \"{Path.GetFileName(project.CSSolutionPath)}\" add \"{Path.Combine(project.CSProjName, project.CSProjName + ".csproj")}\""
                 });
+
+                CMD.ReportOutput($"[ProjectCreation] Project added to solution");
 
                 var csproj = XElement.Load(project.ProjectCSProjPath);
                 csproj.Add(
@@ -210,6 +339,8 @@ namespace TypeD.Models.Providers
                     )
                 );
                 csproj.Save(project.ProjectCSProjPath);
+                
+                CMD.ReportOutput($"[ProjectCreation] Project creation completed successfully");
             }
         }
     }

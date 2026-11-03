@@ -21,6 +21,9 @@ namespace TypeD.Models.Providers
         public async Task<IEnumerable<ModuleList>> List(Project project)
         {
             var moduleList = (await TyperModel.ListModules()).Where(m => m.Name != "TypeD").ToList();
+            
+            if(project == null)
+                return moduleList;
 
             // Modules in use that typer does not know about, for example local ones, are listed with the version in use
             foreach (var module in project.Modules)
