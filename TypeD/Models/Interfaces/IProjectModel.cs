@@ -7,7 +7,7 @@ namespace TypeD.Models.Interfaces
     /// <summary>Model that builds, runs and generates code for projects.</summary>
     public interface IProjectModel : IModel
     {
-        /// <summary>Builds a project.</summary>
+        /// <summary>Builds the game and its project references into the editor's build output folder.</summary>
         /// <param name="project">The project.</param>
         /// <returns><c>true</c> if the build succeeded.</returns>
         public Task<bool> Build(Project project);

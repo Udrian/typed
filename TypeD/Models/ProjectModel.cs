@@ -53,23 +53,12 @@ namespace TypeD.Models
             var errors = new List<BuildIssue>();
             try
             {
-                // Find the solution file (could be .sln or .slnx)
-                var basePath = Path.Combine(project.Location, Path.GetFileNameWithoutExtension(project.CSSolutionPath));
-                var slnPath = basePath + ".sln";
-                var slnxPath = basePath + ".slnx";
-                
-                string solutionPath = null;
-                if (File.Exists(slnPath))
-                    solutionPath = slnPath;
-                else if (File.Exists(slnxPath))
-                    solutionPath = slnxPath;
-                
-                if (solutionPath == null)
+                if (!File.Exists(project.ProjectCSProjPath))
                 {
                     errors.Add(new BuildIssue
                     {
                         Severity = "error",
-                        Message = $"Solution file not found. Checked for '{slnPath}' and '{slnxPath}'."
+                        Message = $"Project file not found: '{project.ProjectCSProjPath}'."
                     });
                     PublishBuildStatus(project, false, true, false, "Build failed", warnings, errors);
                     return false;
@@ -87,7 +76,7 @@ namespace TypeD.Models
                     CreateNoWindow = true
                 };
                 startInfo.ArgumentList.Add("build");
-                startInfo.ArgumentList.Add(solutionPath);
+                startInfo.ArgumentList.Add(project.ProjectCSProjPath);
                 startInfo.ArgumentList.Add("--output");
                 startInfo.ArgumentList.Add(project.ProjectBuildOutputPath);
                 startInfo.ArgumentList.Add("--verbosity");
