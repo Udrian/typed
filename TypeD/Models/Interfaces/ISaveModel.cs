@@ -26,7 +26,7 @@ namespace TypeD.Models.Interfaces
         /// <param name="param">The context parameter.</param>
         /// <returns>The save context.</returns>
         public T GetSaveContext<T>(object param = null) where T : SaveContext, new();
-        /// <summary>Performs all queued saves.</summary>
+        /// <summary>Performs all queued saves, including saves queued by save callbacks.</summary>
         /// <param name="project">The project.</param>
         public Task Save(Project project);
     }

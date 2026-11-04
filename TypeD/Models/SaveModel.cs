@@ -67,10 +67,25 @@ namespace TypeD.Models
 
         public async Task Save(Project project)
         {
-            foreach(var saveContext in SaveContexts.Values)
+            while (true)
             {
-                if(saveContext.ShouldSave)
-                    await saveContext.SaveAction(project);
+                var pending = SaveContexts.Values.Where(context => context.ShouldSave).ToList();
+                if (pending.Count == 0)
+                    break;
+
+                foreach (var saveContext in pending)
+                {
+                    saveContext.ShouldSave = false;
+                    try
+                    {
+                        await saveContext.SaveAction(project);
+                    }
+                    catch
+                    {
+                        saveContext.ShouldSave = true;
+                        throw;
+                    }
+                }
             }
             SaveContexts.Clear();
             UINotifyModel.Notify("AnythingToSave");

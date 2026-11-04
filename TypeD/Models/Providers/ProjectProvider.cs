@@ -27,6 +27,9 @@ namespace TypeD.Models.Providers
         IModuleProvider ModuleProvider { get; set; }
         IComponentProvider ComponentProvider { get; set; }
 
+        // The project whose module assemblies are currently loaded and initialized
+        Project LoadedProject { get; set; }
+
         // Constructors
         public ProjectProvider() { }
 
@@ -165,6 +168,17 @@ namespace TypeD.Models.Providers
             Report(5, "Initializing project");
             ResourceModel.Get<IIconModel>().Sync(project);
             TypeDInit.ProjectLoad(project, ResourceModel);
+
+            // The module initializers register into shared resources, so unload the modules of the
+            // previously loaded project before the new project's modules are initialized
+            if (LoadedProject != null && LoadedProject != project)
+            {
+                foreach (var module in LoadedProject.Modules)
+                {
+                    ModuleModel.UnloadAssembly(module);
+                }
+            }
+            LoadedProject = project;
 
             // Prepare
             Report(10, "Resolving modules");
