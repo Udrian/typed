@@ -1,18 +1,10 @@
-﻿using System;
-using TypeD.Models.Data;
+﻿using TypeD.Models.Data;
 
 namespace TypeD.View
 {
     /// <summary>A setting shown in the settings view.</summary>
     public class SettingItem
     {
-        /// <summary>The kinds of editors a setting can use.</summary>
-        public enum SettingType
-        {
-            /// <summary>A text editor.</summary>
-            Text
-        }
-
         // Properties
         /// <summary>Gets or sets the title.</summary>
         public string Title { get; set; }

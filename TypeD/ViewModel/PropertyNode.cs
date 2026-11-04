@@ -66,7 +66,7 @@ namespace TypeD.ViewModel
             }
         }
         /// <summary>Gets a value indicating whether the property or its component is read-only.</summary>
-        public bool ReadOnly { get => Property.ReadOnly || Component.ReadOnly; }
+        public bool ReadOnly { get => Property.ReadOnly || Component?.ReadOnly == true; }
         /// <summary>Gets or sets the validation error message for this property. Set to null or empty string to clear errors.</summary>
         public string ValidationError
         {

@@ -39,6 +39,9 @@ namespace TypeD.Models.Data
         /// <summary>Gets the value.</summary>
         /// <returns>The current value.</returns>
         public object GetValue();
+        /// <summary>Gets the declared value type, including when the current value is null.</summary>
+        /// <returns>The setting's value type.</returns>
+        public Type GetValueType();
         /// <summary>Gets the default value.</summary>
         /// <returns>The default value.</returns>
         public object GetDefaultValue();
@@ -87,6 +90,12 @@ namespace TypeD.Models.Data
         }
 
         /// <inheritdoc/>
+        public Type GetValueType()
+        {
+            return typeof(T);
+        }
+
+        /// <inheritdoc/>
         public object GetDefaultValue()
         {
             return DefaultValue;
@@ -122,7 +131,8 @@ namespace TypeD.Models.Data
         public bool ShouldSave { get; internal set; }
 
         // Constructors
-        internal SettingContext() { }
+        /// <summary>Initializes a setting context that can be provided by an editor module.</summary>
+        protected internal SettingContext() { }
 
         internal void Init(SettingLevel settingLevel)
         {
