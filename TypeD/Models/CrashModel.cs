@@ -97,13 +97,12 @@ namespace TypeD.Models
                 progress?.Invoke("Stopping the game");
                 StopGame(project);
 
-                // Uninitializing and initializing a module again restarts its editor side and resets its state
-                foreach (var module in project.Modules.Where(m => report.CrashedModules.Contains(m.Name)))
+                // Loading a module again restarts its editor side and resets its state
+                var crashedModules = project.Modules.Where(m => report.CrashedModules.Contains(m.Name)).ToList();
+                if (crashedModules.Count > 0)
                 {
-                    progress?.Invoke($"Reloading module {module.Name}");
-                    LogModel.Log($"Reloading module {module.Name}");
-                    ModuleModel.UnloadAssembly(module);
-                    ModuleModel.LoadAssembly(project, module);
+                    progress?.Invoke($"Reloading {string.Join(", ", crashedModules.Select(m => m.Name))}");
+                    ModuleModel.ReloadAssemblies(project, crashedModules, (module, _, _) => LogModel.Log($"Reloading module {module.Name}"));
                 }
 
                 progress?.Invoke("Rebuilding and loading the game");

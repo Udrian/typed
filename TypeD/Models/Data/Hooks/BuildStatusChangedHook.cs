@@ -15,6 +15,12 @@ namespace TypeD.Models.Data.Hooks
         public bool Succeeded { get; set; }
         /// <summary>Gets or sets the status text describing the current build state.</summary>
         public string Status { get; set; }
+        /// <summary>Gets or sets the overall progress of the build in percent, or <c>null</c> when it is unknown.</summary>
+        public int? Progress { get; set; }
+        /// <summary>Gets or sets the text of the step currently running within the build, e.g. the project being compiled.</summary>
+        public string SubTask { get; set; }
+        /// <summary>Gets or sets the progress of the current step in percent, or <c>null</c> when it is unknown.</summary>
+        public int? SubProgress { get; set; }
         /// <summary>Gets or sets the warnings reported by the build.</summary>
         public List<BuildIssue> Warnings { get; set; } = new();
         /// <summary>Gets or sets the errors reported by the build.</summary>

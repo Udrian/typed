@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -12,6 +14,7 @@ using TypeD.Models.Data;
 using TypeD.Models.Data.SaveContexts;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
+using Module = TypeD.Models.Data.Module;
 
 namespace TypeD.Models
 {
@@ -195,12 +198,148 @@ namespace TypeD.Models
         {
             if (IsBuilt(module) && (!module.IsLocal || module.Assembly != null)) return true;
 
+            var target = BuildTarget(module);
+            if (target == null) return false;
+
+            LogModel.Log($"Building module {module.Name}");
+            var output = new List<string>();
+            if (await RunBuild(module, target, "quiet", line => { lock (output) output.Add(line); }) != 0)
+            {
+                lock (output) LogModel.Log(string.Join(Environment.NewLine, output));
+            }
+
+            return IsBuilt(module);
+        }
+
+        public async Task<bool> Rebuild(Module module, Action<string> output = null)
+        {
+            var target = BuildTarget(module);
+            if (target == null)
+            {
+                output?.Invoke($"error: No solution or C# project was found for module {module.Name} in '{module.ModulePath}'.");
+                return false;
+            }
+
+            LogModel.Log($"Rebuilding module {module.Name}");
+            return await RunBuild(module, target, "minimal", output) == 0 && IsBuilt(module);
+        }
+
+        public bool CanReload(Module module)
+        {
+            return !IsEditorAssembly(module.Name) && (!module.HaveDevModule || !IsEditorAssembly(module.TypeO.DevModuleName));
+        }
+
+        public void LoadAssembly(Project project, Module module)
+        {
+            if (!LoadAssemblyFiles(module)) return;
+
+            InitializeAssembly(project, module);
+        }
+
+        public void UnloadAssembly(Module module)
+        {
+            if (module.Assembly == null) return;
+
+            UninitializeTypeD(module);
+            Unregister(module.Assembly);
+            Unregister(module.DevAssembly);
+            module.Assembly = null;
+            module.DevAssembly = null;
+            module.ModuleTypeInfo = null;
+            module.TypeDModuleInitializer = null;
+        }
+
+        public void ReloadAssemblies(Project project, IEnumerable<Module> modules, Action<Module, int, int> progress = null)
+        {
+            var reloaded = modules.Distinct().ToList();
+            foreach (var module in reloaded)
+            {
+                UnloadAssembly(module);
+            }
+
+            // Every assembly is loaded before any is initialized, since initializing resolves the modules it depends on
+            var loaded = reloaded.Where(LoadAssemblyFiles).ToList();
+            for (var i = 0; i < loaded.Count; i++)
+            {
+                progress?.Invoke(loaded[i], i, loaded.Count);
+                InitializeAssembly(project, loaded[i]);
+            }
+        }
+
+        // Assembly loading
+        private static readonly ConcurrentDictionary<string, Assembly> ModuleAssemblies = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Lazy<HashSet<string>> EditorAssemblies = new(() =>
+            new HashSet<string>(((AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string) ?? string.Empty)
+                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(Path.GetFileNameWithoutExtension), StringComparer.OrdinalIgnoreCase));
+
+        static ModuleModel()
+        {
+            // Lets the game, which is loaded in its own context, and the editor find the latest version of a module
+            AppDomain.CurrentDomain.AssemblyResolve += (_, e) => FindModuleAssembly(new AssemblyName(e.Name));
+        }
+
+        // The editor is built with these assemblies, so they are shared with it instead of loaded again
+        internal static bool IsEditorAssembly(string name)
+        {
+            return name != null && EditorAssemblies.Value.Contains(name);
+        }
+
+        private static Assembly FindModuleAssembly(AssemblyName name)
+        {
+            return name.Name != null && ModuleAssemblies.TryGetValue(name.Name, out var assembly) ? assembly : null;
+        }
+
+        private bool LoadAssemblyFiles(Module module)
+        {
+            if (!File.Exists(module.ModuleDLLPath)) return false;
+
+            module.Assembly = LoadModuleAssembly(module, module.ModuleDLLPath);
+            if (module.HaveDevModule && File.Exists(module.ModuleDevDLLPath))
+            {
+                module.DevAssembly = LoadModuleAssembly(module, module.ModuleDevDLLPath);
+            }
+            return true;
+        }
+
+        private void InitializeAssembly(Project project, Module module)
+        {
+            module.ModuleTypeInfo = GetModuleType(module);
+            InitializeTypeD(project, module);
+        }
+
+        private static Assembly LoadModuleAssembly(Module module, string path)
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+            var assembly = IsEditorAssembly(name)
+                ? Assembly.LoadFrom(path)
+                : new ModuleLoadContext($"{module.Name}: {name}", Path.GetDirectoryName(path), FindModuleAssembly).LoadFile(path);
+            ModuleAssemblies[name] = assembly;
+            return assembly;
+        }
+
+        private static void Unregister(Assembly assembly)
+        {
+            if (assembly == null) return;
+
+            var name = assembly.GetName().Name;
+            if (name != null && ModuleAssemblies.TryGetValue(name, out var registered) && registered == assembly)
+            {
+                ModuleAssemblies.TryRemove(name, out _);
+            }
+        }
+
+        private static string BuildTarget(Module module)
+        {
             var solutionSln = Path.Combine(module.ModulePath, $"{module.Name}.sln");
             var solutionSlnx = Path.Combine(module.ModulePath, $"{module.Name}.slnx");
             var solution = File.Exists(solutionSln) ? solutionSln : (File.Exists(solutionSlnx) ? solutionSlnx : null);
-            var target = solution != null ? solution : Path.Combine(module.ModulePath, module.Name, $"{module.Name}.csproj");
-            if (!File.Exists(target)) return false;
+            var target = solution ?? Path.Combine(module.ModulePath, module.Name, $"{module.Name}.csproj");
+            return File.Exists(target) ? target : null;
+        }
 
+        private static async Task<int> RunBuild(Module module, string target, string verbosity, Action<string> output)
+        {
             var startInfo = new ProcessStartInfo
             {
                 FileName = "dotnet",
@@ -210,42 +349,19 @@ namespace TypeD.Models
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
-            foreach (var arg in new[] { "build", target, "-c", "Debug", "--verbosity", "quiet" }) startInfo.ArgumentList.Add(arg);
+            foreach (var arg in new[] { "build", target, "-c", "Debug", "--verbosity", verbosity }) startInfo.ArgumentList.Add(arg);
 
-            LogModel.Log($"Building module {module.Name}");
-            using var process = Process.Start(startInfo);
-            var output = process.StandardOutput.ReadToEndAsync();
-            var error = process.StandardError.ReadToEndAsync();
+            using var process = new Process { StartInfo = startInfo };
+            process.OutputDataReceived += (_, e) => { if (e.Data != null) output?.Invoke(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data != null) output?.Invoke(e.Data); };
+            if (!process.Start())
+                throw new InvalidOperationException("The dotnet build process could not be started.");
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
             await process.WaitForExitAsync();
-            if (process.ExitCode != 0)
-            {
-                LogModel.Log(await output);
-                LogModel.Log(await error);
-            }
-
-            return IsBuilt(module);
-        }
-
-        public void LoadAssembly(Project project, Module module)
-        {
-            if (!File.Exists(module.ModuleDLLPath)) return;
-
-            module.Assembly = System.Reflection.Assembly.LoadFrom(module.ModuleDLLPath);
-            module.ModuleTypeInfo = GetModuleType(module);
-            if (module.HaveDevModule && File.Exists(module.ModuleDevDLLPath))
-            {
-                module.DevAssembly = System.Reflection.Assembly.LoadFrom(module.ModuleDevDLLPath);
-            }
-            InitializeTypeD(project, module);
-        }
-
-        public void UnloadAssembly(Module module)
-        {
-            if (module.Assembly == null) return;
-
-            UninitializeTypeD(module);
-            module.Assembly = null;
-            module.ModuleTypeInfo = null;
+            process.WaitForExit();
+            return process.ExitCode;
         }
 
         // Internal functions
@@ -255,7 +371,9 @@ namespace TypeD.Models
 
             var resolved = await Resolve(project, true);
             SaveModel.AddSave<ProjectSaveContext>(project);
-            ResourceModel.Get<IProjectModel>().InitAndSaveCode(project, new ProgramCode());
+            var projectModel = ResourceModel.Get<IProjectModel>();
+            projectModel.RefreshWatching(project);
+            projectModel.InitAndSaveCode(project, new ProgramCode());
             return resolved;
         }
 

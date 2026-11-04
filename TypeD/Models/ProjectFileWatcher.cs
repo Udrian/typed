@@ -1,26 +1,26 @@
 using System.IO;
-using TypeD.Models.Data;
 using TypeD.Models.Interfaces;
 
 namespace TypeD.Models
 {
+    // Watches the source files below a folder and reports every changed file that can affect a build
     internal sealed class ProjectFileWatcher : IDisposable
     {
-        private readonly Project Project;
-        private readonly Action<Project> BuildRequested;
+        private static readonly string[] SourceExtensions = { ".cs", ".csproj", ".sln", ".slnx", ".props", ".targets", ".axaml", ".xaml", ".resx" };
+        private static readonly string[] IgnoredFolders = { "bin", "obj", ".git", ".vs", "typer", "node_modules" };
+
+        public string Root { get; }
+
+        private readonly Action<string> SourceChanged;
         private readonly ILogModel LogModel;
         private readonly FileSystemWatcher Watcher;
-        private readonly Timer DebounceTimer;
-        private readonly object SyncRoot = new();
-        private bool IsDisposed;
 
-        public ProjectFileWatcher(Project project, Action<Project> buildRequested, ILogModel logModel)
+        public ProjectFileWatcher(string root, Action<string> sourceChanged, ILogModel logModel)
         {
-            Project = project;
-            BuildRequested = buildRequested;
+            Root = root;
+            SourceChanged = sourceChanged;
             LogModel = logModel;
-            DebounceTimer = new Timer(OnDebounceElapsed, null, Timeout.Infinite, Timeout.Infinite);
-            Watcher = new FileSystemWatcher(project.Location)
+            Watcher = new FileSystemWatcher(root)
             {
                 IncludeSubdirectories = true,
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
@@ -35,27 +35,23 @@ namespace TypeD.Models
             Watcher.EnableRaisingEvents = true;
         }
 
-        public void ScheduleBuild()
+        public static bool IsSourceFile(string root, string path)
         {
-            lock (SyncRoot)
-            {
-                if (!IsDisposed)
-                    DebounceTimer.Change(750, Timeout.Infinite);
-            }
+            var extension = Path.GetExtension(path);
+            if (!SourceExtensions.Any(e => e.Equals(extension, StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            if (Path.GetFileName(path).StartsWith("~", StringComparison.Ordinal))
+                return false;
+
+            var pathSegments = Path.GetRelativePath(root, path).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return !pathSegments.Any(segment => IgnoredFolders.Any(ignored => ignored.Equals(segment, StringComparison.OrdinalIgnoreCase)));
         }
 
         public void Dispose()
         {
-            lock (SyncRoot)
-            {
-                if (IsDisposed)
-                    return;
-                IsDisposed = true;
-            }
-
             Watcher.EnableRaisingEvents = false;
             Watcher.Dispose();
-            DebounceTimer.Dispose();
         }
 
         private void OnFileChanged(object sender, FileSystemEventArgs e)
@@ -71,47 +67,13 @@ namespace TypeD.Models
 
         private void HandlePath(string path)
         {
-            var extension = Path.GetExtension(path);
-            if (!extension.Equals(".cs", StringComparison.OrdinalIgnoreCase) &&
-                !extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase) &&
-                !extension.Equals(".sln", StringComparison.OrdinalIgnoreCase) &&
-                !extension.Equals(".props", StringComparison.OrdinalIgnoreCase) &&
-                !extension.Equals(".targets", StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            var relativePath = Path.GetRelativePath(Project.Location, path);
-            var pathSegments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (pathSegments.Any(segment =>
-                segment.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
-                segment.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
-                segment.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
-                segment.Equals(".vs", StringComparison.OrdinalIgnoreCase)))
-            {
-                return;
-            }
-
-            if (Path.GetFileName(path).StartsWith("~", StringComparison.Ordinal))
-                return;
-
-            ScheduleBuild();
+            if (IsSourceFile(Root, path))
+                SourceChanged(path);
         }
 
         private void OnError(object sender, ErrorEventArgs e)
         {
-            LogModel.Log($"Project source file watcher failed: {e.GetException()}");
-        }
-
-        private void OnDebounceElapsed(object state)
-        {
-            lock (SyncRoot)
-            {
-                if (IsDisposed)
-                    return;
-            }
-
-            BuildRequested(Project);
+            LogModel.Log($"Source file watcher for '{Root}' failed: {e.GetException()}");
         }
     }
 }

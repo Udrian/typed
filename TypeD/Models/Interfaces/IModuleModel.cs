@@ -52,6 +52,18 @@ namespace TypeD.Models.Interfaces
         /// <param name="module">The module to build.</param>
         /// <returns><c>true</c> if the module is built.</returns>
         public Task<bool> Build(Module module);
+        /// <summary>Builds a module even when it is already built, e.g. after its source changed.</summary>
+        /// <param name="module">The module to build.</param>
+        /// <param name="output">Called with every line the build outputs, including its warnings and errors.</param>
+        /// <returns><c>true</c> if the module is built.</returns>
+        public Task<bool> Rebuild(Module module, Action<string> output = null);
+        /// <summary>
+        /// Gets whether a rebuilt module can be loaded again while the editor runs. Modules the editor itself is built with
+        /// keep using the editor's version until the editor is rebuilt and restarted.
+        /// </summary>
+        /// <param name="module">The module.</param>
+        /// <returns><c>true</c> if the module can be reloaded.</returns>
+        public bool CanReload(Module module);
         /// <summary>Loads the assemblies of a module for a project.</summary>
         /// <param name="project">The project the module is used by.</param>
         /// <param name="module">The module to load.</param>
@@ -59,5 +71,13 @@ namespace TypeD.Models.Interfaces
         /// <summary>Unloads the assemblies of a module.</summary>
         /// <param name="module">The module to unload.</param>
         public void UnloadAssembly(Module module);
+        /// <summary>
+        /// Unloads modules and loads their latest built assemblies again, then initializes them. All modules are loaded before
+        /// any is initialized, so modules that depend on each other use each other's new versions.
+        /// </summary>
+        /// <param name="project">The project the modules are used by.</param>
+        /// <param name="modules">The modules to reload.</param>
+        /// <param name="progress">Called with each module before it is initialized, its index and the number of modules.</param>
+        public void ReloadAssemblies(Project project, IEnumerable<Module> modules, Action<Module, int, int> progress = null);
     }
 }

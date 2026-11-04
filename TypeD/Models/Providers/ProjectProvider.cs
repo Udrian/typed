@@ -190,6 +190,8 @@ namespace TypeD.Models.Providers
 
             Report(70, "Loading assemblies");
             ResourceModel.Get<IIconModel>().Sync(project);
+            // The modules are known now, so watch the source of the local ones as well
+            ProjectModel.RefreshWatching(project);
 
             ProjectModel.LoadAssembly(project);
             Report(78, "Building component tree");

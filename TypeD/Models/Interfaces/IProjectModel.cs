@@ -11,9 +11,20 @@ namespace TypeD.Models.Interfaces
         /// <param name="project">The project.</param>
         /// <returns><c>true</c> if the build succeeded.</returns>
         public Task<bool> Build(Project project);
-        /// <summary>Starts watching a project's files for changes.</summary>
+        /// <summary>
+        /// Builds the changed modules of a project, then the game. Rebuilt modules that can be reloaded are loaded again together
+        /// with the game, which is stopped and started again around the reload.
+        /// </summary>
+        /// <param name="project">The project.</param>
+        /// <param name="changedModules">The modules whose source changed, or <c>null</c> when only the game changed.</param>
+        /// <returns><c>true</c> if the build succeeded.</returns>
+        public Task<bool> Build(Project project, IEnumerable<Module> changedModules);
+        /// <summary>Starts watching a project's files and the files of its local modules for changes.</summary>
         /// <param name="project">The project.</param>
         public void StartWatching(Project project);
+        /// <summary>Updates the watched module folders of a watched project after its modules changed.</summary>
+        /// <param name="project">The project.</param>
+        public void RefreshWatching(Project project);
         /// <summary>Stops watching a project's files for changes.</summary>
         /// <param name="project">The project.</param>
         public void StopWatching(Project project);
