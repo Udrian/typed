@@ -25,6 +25,7 @@ namespace TypeD
                 new ProjectModel(),
                 new HookModel(),
                 new SaveModel(),
+                new CrashModel(),
                 new UINotifyModel(),
                 new LogModel(),
                 new RestoreModel(),
