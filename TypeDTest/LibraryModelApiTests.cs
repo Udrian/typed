@@ -209,6 +209,85 @@ public class LibraryModelApiTests
     }
 
     [Fact]
+    public async Task ContentProvider_TypeRegistrationReloadsUnchangedGenericContent()
+    {
+        var provider = InitializeResources().Get<IContentProvider>();
+        var directory = CreateTempDirectory();
+        var path = Path.Combine(directory, "preview.data");
+        File.WriteAllBytes(path, [1, 2, 3]);
+        var lastWrite = File.GetLastWriteTimeUtc(path);
+        Task<Content> refreshed = null;
+        Action changed = () => refreshed = provider.GetContentAsync(path);
+
+        try
+        {
+            Assert.IsType<Content>(await provider.GetContentAsync(path));
+            provider.ContentTypesChanged += changed;
+
+            provider.AddSupportedContentType<TrackedContent>("data");
+
+            Assert.NotNull(refreshed);
+            Assert.True(Assert.IsType<TrackedContent>(await refreshed).Initialized);
+            Assert.Equal(lastWrite, File.GetLastWriteTimeUtc(path));
+        }
+        finally
+        {
+            provider.ContentTypesChanged -= changed;
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ContentProvider_NotifiesAfterCompleteRegistrationAndRemoval()
+    {
+        var provider = InitializeResources().Get<IContentProvider>();
+        var notifications = 0;
+        provider.ContentTypesChanged += () =>
+        {
+            notifications++;
+            if (notifications == 1)
+            {
+                Assert.Equal("texture.png", provider.GetIcon("data"));
+                Assert.NotNull(provider.GetAssociation("data"));
+            }
+            else
+            {
+                Assert.Null(provider.GetIcon("data"));
+                Assert.Null(provider.GetAssociation("data"));
+            }
+        };
+
+        provider.AddSupportedContentType<TrackedContent, EngineAsset, EngineTexture>("data", "texture.png");
+        provider.RemoveSupportedContentType<TrackedContent>("data");
+        provider.RemoveSupportedContentType<TrackedContent>("data");
+
+        Assert.Equal(2, notifications);
+    }
+
+    [Fact]
+    public async Task ContentProvider_InFlightLoadKeepsItsRegisteredContentType()
+    {
+        var provider = InitializeResources().Get<IContentProvider>();
+        var directory = CreateTempDirectory();
+        var path = Path.Combine(directory, "preview.data");
+        File.WriteAllBytes(path, [1, 2, 3]);
+        provider.AddSupportedContentType<TrackedContent>("data");
+
+        try
+        {
+            var pending = provider.GetContentAsync(path);
+            provider.RemoveSupportedContentType<TrackedContent>("data");
+
+            Assert.True(Assert.IsType<TrackedContent>(await pending).Initialized);
+            Assert.IsType<Content>(await provider.GetContentAsync(path));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ContentProvider_LoadsRegisteredTypesAndFallsBackForUnknownExtensions()
     {
         var provider = InitializeResources().Get<IContentProvider>();

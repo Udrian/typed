@@ -5,6 +5,9 @@ namespace TypeD.Models.Providers.Interfaces
     /// <summary>Provider of project content files and their supported types.</summary>
     public interface IContentProvider
     {
+        /// <summary>Raised after content types, icons, or engine associations are registered or removed.</summary>
+        event Action ContentTypesChanged;
+
         /// <summary>Lists the paths of all content files in a project.</summary>
         /// <param name="project">The project.</param>
         /// <returns>The paths.</returns>
