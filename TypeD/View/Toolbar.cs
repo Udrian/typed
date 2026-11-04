@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace TypeD.View
 {
-    /// <summary>A button in a toolbar group.</summary>
+    /// <summary>A button in a toolbar group, or a custom control when <see cref="CreateControl"/> is set.</summary>
     public class ToolbarItem
     {
         // Properties
@@ -26,6 +26,11 @@ namespace TypeD.View
         public Action<object> Click { get; set; }
         /// <summary>Gets or sets the name of the view model property whose value is passed to <see cref="Click"/>.</summary>
         public string ClickParameter { get; set; }
+        /// <summary>
+        /// Gets or sets a factory for a custom control (for example input fields) shown instead of a button.
+        /// The control is responsible for its own behavior and state.
+        /// </summary>
+        public Func<Avalonia.Controls.Control> CreateControl { get; set; }
     }
 
     /// <summary>A named group of toolbar items that can be reordered as a unit.</summary>

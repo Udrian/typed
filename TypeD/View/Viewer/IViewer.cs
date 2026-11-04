@@ -32,5 +32,11 @@ namespace TypeD.View.Viewer
         /// Loaded component
         /// </summary>
         public Component Component { get; }
+
+        /// <summary>
+        /// The editor camera used to navigate the viewer, or <c>null</c> if the viewer can't be navigated.
+        /// Viewer coordinates must be converted with it to get world coordinates.
+        /// </summary>
+        public ViewerCamera Camera => null;
     }
 }

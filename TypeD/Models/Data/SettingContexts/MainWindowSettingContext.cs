@@ -51,6 +51,8 @@ namespace TypeD.Models.Data.SettingContexts
         public Setting<string> DockLayout { get; set; } = new Setting<string>(string.Empty);
         /// <summary>Gets or sets the order of the toolbar groups.</summary>
         public Setting<string> ToolbarGroupOrder { get; set; } = new Setting<string>(string.Empty);
+        /// <summary>Gets or sets the keyboard navigation speed of the viewer camera, in viewer units per second.</summary>
+        public Setting<double> CameraSpeed { get; set; } = new Setting<double>(TypeD.View.Viewer.ViewerCamera.DefaultSpeed);
         /// <summary>Gets or sets the type name of the viewer used to render components.</summary>
         public Setting<string> ViewerType { get; set; } = new Setting<string>("TypeDTK.View.Viewer.TKViewer"/*"TypeDCore.View.Viewer.ConsoleViewer"*/); //TODO: Make a better solution than this.
         /// <summary>Gets or sets the shortcut bindings that differ from the defaults.</summary>

@@ -36,7 +36,7 @@ namespace TypeD.Helpers
                         if (!string.IsNullOrEmpty(item.ClickParameter))
                         {
                             var type = model.GetType();
-                            param = type.GetProperties().FirstOrDefault(p => p.Name == item.ClickParameter).GetValue(model);
+                            param = type.GetProperties().FirstOrDefault(p => p.Name == item.ClickParameter)?.GetValue(model);
                         }
                         item.Click(param);
                     };
@@ -79,7 +79,8 @@ namespace TypeD.Helpers
             var items = new Avalonia.Controls.StackPanel() { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 2 };
             foreach (var item in group.Items)
             {
-                items.Children.Add(CreateToolbarButton(item, group, model, buttons));
+                var control = item.CreateControl?.Invoke();
+                items.Children.Add(control ?? CreateToolbarButton(item, group, model, buttons));
             }
 
             var grip = new Avalonia.Controls.Border()
