@@ -16,6 +16,8 @@ namespace TypeD.Models.Data
         {
             Name = property.Name;
             Description = property.Description;
+            Group = property.Group;
+            DeclaringTypeName = property.DeclaringTypeName;
             Value = property.Value;
             Type = property.Type;
             FromComponent = property.FromComponent;
@@ -30,6 +32,15 @@ namespace TypeD.Models.Data
         /// Gets or sets the description of the property.
         /// </summary>
         public string Description { get; set; }
+        private string _group = "General";
+        /// <summary>Gets or sets the editor group, defaulting to General for an empty group.</summary>
+        public string Group
+        {
+            get => _group;
+            set => _group = string.IsNullOrWhiteSpace(value) ? "General" : value.Trim();
+        }
+        /// <summary>Gets or sets the full name of the class that declares this property.</summary>
+        public string DeclaringTypeName { get; set; }
         /// <summary>
         /// Gets or sets the value of the property.
         /// </summary>

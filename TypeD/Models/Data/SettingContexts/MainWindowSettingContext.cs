@@ -51,6 +51,12 @@ namespace TypeD.Models.Data.SettingContexts
         public Setting<string> DockLayout { get; set; } = new Setting<string>(string.Empty);
         /// <summary>Gets or sets the order of the toolbar groups.</summary>
         public Setting<string> ToolbarGroupOrder { get; set; } = new Setting<string>(string.Empty);
+        /// <summary>Gets or sets the custom property group order as a JSON array of group names.</summary>
+        public Setting<string> PropertyGroupOrder { get; set; } = new Setting<string>(string.Empty);
+        /// <summary>Gets or sets custom property orders by group as a JSON dictionary of name arrays.</summary>
+        public Setting<string> PropertyOrder { get; set; } = new Setting<string>(string.Empty);
+        /// <summary>Gets or sets whether property groups and their properties are displayed alphabetically instead of in custom order.</summary>
+        public Setting<bool> SortPropertyGroupsAlphabetically { get; set; } = new Setting<bool>(false);
         /// <summary>Gets or sets the keyboard navigation speed of the viewer camera, in viewer units per second.</summary>
         public Setting<double> CameraSpeed { get; set; } = new Setting<double>(TypeD.View.Viewer.ViewerCamera.DefaultSpeed);
         /// <summary>Gets or sets the type name of the viewer used to render components.</summary>

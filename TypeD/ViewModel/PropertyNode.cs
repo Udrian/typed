@@ -38,6 +38,33 @@ namespace TypeD.ViewModel
         public Type Type { get => Property.Type; }
         /// <summary>Gets the property description.</summary>
         public string Description { get => Property.Description; }
+        /// <summary>Gets the editor group of the property.</summary>
+        public string Group => Property.Group;
+        /// <summary>Matches a filter against the property name, group, and current value, ignoring case.</summary>
+        public bool MatchesFilter(string filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter))
+                return true;
+
+            var query = filter.Trim();
+            return Name?.Contains(query, StringComparison.OrdinalIgnoreCase) == true
+                || Group.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || Property.Value?.ToString()?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+        }
+        /// <summary>Gets the description, declaring class, and any validation error shown on the property name.</summary>
+        public string NameToolTip
+        {
+            get
+            {
+                var declaringType = Property.DeclaringTypeName ?? Property.FromComponent?.FullName;
+                var text = Description;
+                if (!string.IsNullOrEmpty(declaringType))
+                    text = string.IsNullOrEmpty(text) ? $"Declared by: {declaringType}" : $"{text}\n\nDeclared by: {declaringType}";
+                if (HasValidationError)
+                    text = string.IsNullOrEmpty(text) ? ValidationError : $"{text}\n\n{ValidationError}";
+                return text;
+            }
+        }
         /// <summary>Gets a value indicating whether the property or its component is read-only.</summary>
         public bool ReadOnly { get => Property.ReadOnly || Component.ReadOnly; }
         /// <summary>Gets or sets the validation error message for this property. Set to null or empty string to clear errors.</summary>
@@ -51,6 +78,7 @@ namespace TypeD.ViewModel
                     _validationError = value;
                     OnPropertyChanged(nameof(ValidationError));
                     OnPropertyChanged(nameof(HasValidationError));
+                    OnPropertyChanged(nameof(NameToolTip));
                 }
             }
         }
