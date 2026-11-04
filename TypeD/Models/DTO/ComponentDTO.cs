@@ -44,5 +44,9 @@ namespace TypeD.Models.DTO
         /// Gets or sets the list of properties associated with the <see cref="Component"/>.
         /// </summary>
         public List<PropertyDTO> Properties { get; set; }
+        /// <summary>
+        /// Gets or sets the list of user defined properties of the <see cref="Component"/>.
+        /// </summary>
+        public List<CustomPropertyDTO> CustomProperties { get; set; }
     }
 }

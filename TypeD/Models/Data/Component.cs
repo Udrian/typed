@@ -128,6 +128,11 @@ namespace TypeD.Models.Data
         /// Gets or sets the collection of properties that are explicitly overridden by this instance.
         /// </summary>
         public List<Property> OveriddenProperties { get; set; }
+        /// <summary>
+        /// Gets or sets the properties the user has added to this component. They are stored in the component file
+        /// and generated into the component's code.
+        /// </summary>
+        public List<CustomProperty> CustomProperties { get; set; }
 
         /// <summary>
         /// Gets or sets whether the component definition can't be modified when opened on its own. Base type components
@@ -262,6 +267,7 @@ namespace TypeD.Models.Data
             DefinitionChildren = new List<Component>();
             Properties = new List<Property>();
             OveriddenProperties = new List<Property>();
+            CustomProperties = new List<CustomProperty>();
         }
     }
 }

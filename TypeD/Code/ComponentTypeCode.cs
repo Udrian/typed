@@ -51,7 +51,7 @@ namespace TypeD.Code
             Namespace = component.Namespace;
             Component = component;
             BaseClass = BaseInheritedComponent == null ? TypeOBaseType.FullName : BaseInheritedComponent.FullName;
-            TypeDFile.DynamicProperties = PublicChildProperties;
+            TypeDFile.DynamicProperties = DynamicTypeDProperties;
         }
 
         private static readonly string[] ReservedNames =
@@ -65,6 +65,11 @@ namespace TypeD.Code
         {
             var names = new Dictionary<Component, string>();
             var used = new HashSet<string>(ReservedNames) { Component.ClassName };
+            for (var declaring = Component; declaring != null; declaring = declaring.BaseInheritedComponent)
+            {
+                foreach (var customProperty in declaring.CustomProperties)
+                    used.Add(customProperty.Name);
+            }
             CollectPublicChildren(Component, false, names, used);
             return names;
         }
@@ -106,6 +111,73 @@ namespace TypeD.Code
                     writer.AddLine("get;");
                     writer.AddLine("private set;");
                 })).ToList();
+        }
+
+        private List<Codalyzer.Property> DynamicTypeDProperties()
+        {
+            var properties = PublicChildProperties();
+            properties.AddRange(CustomPropertyCodes());
+            return properties;
+        }
+
+        /// <summary>Creates the generated C# properties for the user defined properties of the component.</summary>
+        private List<Codalyzer.Property> CustomPropertyCodes()
+        {
+            var properties = new List<Codalyzer.Property>();
+            foreach (var customProperty in Component.CustomProperties)
+            {
+                if (string.IsNullOrEmpty(customProperty.Name))
+                    continue;
+
+                var type = ResolveType(customProperty.TypeName);
+                var typeName = type != null ? GetTypeCodeName(type) : customProperty.TypeName;
+                var access = customProperty.Access.ToString().ToLowerInvariant();
+                var group = EscapeString(customProperty.Group ?? "General");
+                var arguments = string.IsNullOrEmpty(customProperty.Description)
+                    ? $"Group = \"{group}\""
+                    : $"\"{EscapeString(customProperty.Description)}\", Group = \"{group}\"";
+                properties.Add(new Codalyzer.Property($"{access} {typeName} {customProperty.Name}")
+                {
+                    Attributes = new List<string>
+                    {
+                        $"[TypeOEngine.Typedeaf.Core.Attributes.TypeOProperty({arguments})]"
+                    },
+                    Initializer = customProperty.DefaultValue == null || type == null
+                        ? null
+                        : GetValueCode(type, customProperty.DefaultValue)
+                });
+            }
+            return properties;
+        }
+
+        private static string EscapeString(string value)
+        {
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n")
+                .Replace("\t", "\\t");
+        }
+
+        private static Type ResolveType(string typeName)
+        {
+            if (string.IsNullOrEmpty(typeName))
+                return null;
+            return Type.GetType(typeName) ?? AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
+                .FirstOrDefault(t => t.FullName == typeName);
+        }
+
+        private static string GetTypeCodeName(Type type)
+        {
+            if (type == typeof(bool)) return "bool";
+            if (type == typeof(int)) return "int";
+            if (type == typeof(long)) return "long";
+            if (type == typeof(float)) return "float";
+            if (type == typeof(double)) return "double";
+            if (type == typeof(string)) return "string";
+            return type.FullName;
         }
 
         /// <summary>Writes the code that sets the component's properties and creates its children.</summary>
@@ -192,41 +264,49 @@ namespace TypeD.Code
             if (string.IsNullOrEmpty(property.Name) || property.ReadOnly)
                 return;
 
+            Writer.AddLine($"{prepend}{property.Name} = {GetValueCode(property.Type, property.Value)};");
+        }
+
+        /// <summary>Creates the C# expression that evaluates to the given value of the given type.</summary>
+        /// <param name="type">The type of the value.</param>
+        /// <param name="value">The value to convert to code.</param>
+        protected string GetValueCode(Type type, object value)
+        {
             var valuestring = "";
-            var definition = ViewModelBase.ResourceModel?.Get<IPropertyModel>()?.Get(property.Type);
-            if (property.Value == null)
+            var definition = ViewModelBase.ResourceModel?.Get<IPropertyModel>()?.Get(type);
+            if (value == null)
             {
                 valuestring = "null";
             }
             else if (definition != null)
             {
-                valuestring = definition.ToCode(property.Value);
+                valuestring = definition.ToCode(value);
             }
-            else if (property.Type == typeof(bool))
+            else if (type == typeof(bool))
             {
-                valuestring = ((bool)property.Value) ? "true" : "false";
+                valuestring = ((bool)value) ? "true" : "false";
             }
-            else if(property.Type == typeof(string))
+            else if(type == typeof(string))
             {
-                valuestring = $"\"{(string.IsNullOrEmpty((string)property.Value) ? "" : (string)property.Value)}\"";
+                valuestring = $"\"{(string.IsNullOrEmpty((string)value) ? "" : (string)value)}\"";
             }
-            else if (property.Type.IsPrimitive)
+            else if (type.IsPrimitive)
             {
-                valuestring = property.Value.ToString();
+                valuestring = value.ToString();
             }
-            else if (property.Type.IsClass || property.Type.IsValueType)
+            else if (type.IsClass || type.IsValueType)
             {
                 List<string> initList = new List<string>();
-                foreach (var initProperty in property.Type.GetProperties())
+                foreach (var initProperty in type.GetProperties())
                 {
                     if (initProperty.CanRead && initProperty.CanWrite && initProperty.GetSetMethod(true).IsPublic)
                     {
-                        var value = initProperty.GetValue(property.Value);
-                        initList.Add($"{initProperty.Name} = {value}");
+                        var initValue = initProperty.GetValue(value);
+                        initList.Add($"{initProperty.Name} = {initValue}");
                     }
                 }
 
-                valuestring = $"new {property.Type.FullName}()";
+                valuestring = $"new {type.FullName}()";
                 if (initList.Count > 0) valuestring += "{ ";
                 var first = true;
                 foreach (var initLine in initList)
@@ -238,9 +318,9 @@ namespace TypeD.Code
             }
             else
             {
-                valuestring = property.Value.ToString();
+                valuestring = value.ToString();
             }
-            Writer.AddLine($"{prepend}{property.Name} = {valuestring};");
+            return valuestring;
         }
     }
 }

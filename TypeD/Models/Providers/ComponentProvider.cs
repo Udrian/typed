@@ -62,6 +62,7 @@ namespace TypeD.Models.Providers
 
             var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(parentComponent));
             component.Properties = extractPropertiesHook.Properties;
+            AppendCustomProperties(component, null);
 
             component.Template.Init();
             ProjectModel.InitAndSaveCode(project, component.Template.Code);
@@ -144,7 +145,18 @@ namespace TypeD.Models.Providers
                         Name = p.Name,
                         Value = p.Value
                     };
-                }).ToList() ?? new List<Property>()
+                }).ToList() ?? new List<Property>(),
+                CustomProperties = dto.CustomProperties?.Select(p => new CustomProperty()
+                {
+                    Name = p.Name,
+                    Description = p.Description,
+                    TypeName = p.Type,
+                    DefaultValue = DeserializeValue(p.DefaultValue, ResolveType(p.Type)),
+                    Group = p.Group,
+                    Access = Enum.TryParse<CustomPropertyAccess>(p.Access, true, out var access)
+                        ? access
+                        : CustomPropertyAccess.Public
+                }).ToList() ?? new List<CustomProperty>()
             };
 
             component.DefinitionChildren = new List<Component>(component.Children);
@@ -153,11 +165,12 @@ namespace TypeD.Models.Providers
                 child.ParentComponent = component;
             }
 
+            var savedProperties = component.Properties;
             var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(component));
             var defaultProperties = extractPropertiesHook.Properties;
             component.Properties = defaultProperties.Select((d) =>
             {
-                var newProp = component.Properties.FirstOrDefault(p => p.Name == d.Name);
+                var newProp = savedProperties.FirstOrDefault(p => p.Name == d.Name);
                 if (newProp != null && newProp.Value is JsonElement)
                 {
                     var val = ((JsonElement)newProp.Value).Deserialize(GetStoredValueType(d.Type), JSON.CreateOptions(web: true));
@@ -168,11 +181,64 @@ namespace TypeD.Models.Providers
                 }
                 return d;
             }).ToList();
+            AppendCustomProperties(component, savedProperties);
             component.OveriddenProperties = component.Properties.Select(property => new Property(property)).ToList();
 
             component.Template.Component = component;
 
             return component;
+        }
+
+        /// <summary>
+        /// Adds the custom properties declared by the component and its base components to the property list, until
+        /// the generated code has been compiled and they are extracted through reflection like any other property.
+        /// </summary>
+        private void AppendCustomProperties(Component component, List<Property> savedProperties)
+        {
+            for (var declaring = component; declaring != null; declaring = declaring.BaseInheritedComponent)
+            {
+                foreach (var customProperty in declaring.CustomProperties)
+                {
+                    if (customProperty.Access != CustomPropertyAccess.Public)
+                        continue;
+                    if (component.Properties.Any(p => p.Name == customProperty.Name))
+                        continue;
+                    var type = ResolveType(customProperty.TypeName);
+                    if (type == null)
+                        continue;
+
+                    var property = new Property()
+                    {
+                        Name = customProperty.Name,
+                        Description = customProperty.Description,
+                        Group = customProperty.Group,
+                        DeclaringTypeName = declaring.FullName,
+                        Type = type,
+                        Value = customProperty.DefaultValue,
+                        FromComponent = declaring
+                    };
+                    var saved = savedProperties?.FirstOrDefault(p => p.Name == customProperty.Name);
+                    if (saved != null)
+                        property.Value = DeserializeValue(saved.Value, type);
+                    component.Properties.Add(property);
+                }
+            }
+        }
+
+        private object DeserializeValue(object value, Type type)
+        {
+            if (value is JsonElement jsonValue && type != null)
+                return jsonValue.Deserialize(GetStoredValueType(type), JSON.CreateOptions(web: true));
+            return value;
+        }
+
+        private Type ResolveType(string typeName)
+        {
+            if (string.IsNullOrEmpty(typeName))
+                return null;
+            return Type.GetType(typeName) ?? AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
+                .FirstOrDefault(t => t.FullName == typeName);
         }
 
         private Component TranslateChildDTO(Project project, ComponentChildDTO dto)
@@ -276,6 +342,7 @@ namespace TypeD.Models.Providers
                 Properties = source.Properties.Select(property => new Property(property)).ToList(),
                 OveriddenProperties = (useCurrentValuesAsOverrideBaseline ? source.Properties : source.OveriddenProperties)
                     .Select(property => new Property(property)).ToList(),
+                CustomProperties = source.CustomProperties.Select(property => new CustomProperty(property)).ToList(),
                 Template = Activator.CreateInstance(source.Template.GetType()) as ComponentTemplate,
                 Removed = source.Removed,
                 Public = source.Public

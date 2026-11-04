@@ -226,6 +226,17 @@ namespace TypeD.Code
             /// generated.</remarks>
             public Action<CodeWriter> Body { get; set; }
 
+            /// <summary>
+            /// Gets or sets the attribute lines written above the property, e.g. <c>[TypeOProperty]</c>.
+            /// </summary>
+            public List<string> Attributes { get; set; }
+
+            /// <summary>
+            /// Gets or sets the C# expression assigned as the property initializer, written as <c>= expression;</c>
+            /// after an auto property. Ignored when <see cref="Body"/> is set.
+            /// </summary>
+            public string Initializer { get; set; }
+
             // Constructors
             /// <summary>
             /// Initializes a new instance of the <see cref="Property"/> class with the specified definition.
@@ -271,9 +282,14 @@ namespace TypeD.Code
             /// <param name="writer">The <see cref="CodeWriter"/> instance to which the generated code will be written. Cannot be <see langword="null"/>.</param>
             public void Generate(CodeWriter writer)
             {
+                foreach (var attribute in Attributes ?? new List<string>())
+                {
+                    writer.AddLine(attribute);
+                }
+
                 if (Body == null)
                 {
-                    writer.AddLine($"{Definition} {{ get; set; }}");
+                    writer.AddLine($"{Definition} {{ get; set; }}{(string.IsNullOrEmpty(Initializer) ? "" : $" = {Initializer};")}");
                 }
                 else
                 {

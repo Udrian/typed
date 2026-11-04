@@ -67,6 +67,16 @@ namespace TypeD.Models.Data.SaveContexts
                             {
                                 Name = p.Name,
                                 Value = p.Value
+                            }).ToList(),
+                        CustomProperties = saveComponent.CustomProperties
+                            .Select(p => new CustomPropertyDTO
+                            {
+                                Name = p.Name,
+                                Description = p.Description,
+                                Type = p.TypeName,
+                                DefaultValue = p.DefaultValue,
+                                Group = p.Group,
+                                Access = p.Access.ToString()
                             }).ToList()
                     }, ComponentProvider.GetPath(Project, saveComponent));
                 }
