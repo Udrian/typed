@@ -17,7 +17,7 @@ namespace TypeD.Models.Interfaces
         /// <typeparam name="T">The setting context type.</typeparam>
         /// <param name="settingLevel">The level to get it from.</param>
         /// <returns>The setting context.</returns>
-        public T GetContext<T>(SettingLevel settingLevel = SettingLevel.Local) where T : SettingContext, new();
+        public T GetContext<T>(SettingLevel settingLevel = SettingLevel.User) where T : SettingContext, new();
         /// <summary>Sets a setting context.</summary>
         /// <param name="settingContext">The context to set.</param>
         /// <param name="settingLevel">The level to set it at, or <c>null</c> for the default.</param>

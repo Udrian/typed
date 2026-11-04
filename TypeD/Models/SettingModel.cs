@@ -23,8 +23,8 @@ namespace TypeD.Models
         {
             Contexts = new Dictionary<SettingLevel, List<SettingContext>>();
             Contexts.Add(SettingLevel.System, new List<SettingContext>());
-            Contexts.Add(SettingLevel.Workspace, new List<SettingContext>());
-            Contexts.Add(SettingLevel.Local, new List<SettingContext>());
+            Contexts.Add(SettingLevel.Project, new List<SettingContext>());
+            Contexts.Add(SettingLevel.User, new List<SettingContext>());
         }
 
         public void Init(IResourceModel resourceModel)
@@ -55,13 +55,14 @@ namespace TypeD.Models
         // Functions
         public void InitContext<T>(Project project) where T : SettingContext, new()
         {
-            var paths = new List<string>() { GetPath(project, SettingLevel.System), GetPath(project, SettingLevel.Workspace), GetPath(project, SettingLevel.Local) };
+            RemoveContext<T>();
+            var paths = new List<string>() { GetPath(project, SettingLevel.System), project == null ? null : GetPath(project, SettingLevel.Project), project == null ? null : GetPath(project, SettingLevel.User) };
             var i = 0;
             foreach(var path in paths)
             {
                 var filePath = $"{path}/{GetName<T>()}.json";
                 T context = null;
-                if (File.Exists(filePath))
+                if (path != null && File.Exists(filePath))
                 {
                     context = new T().Merge(JSON.Deserialize<T>(filePath)) as T;
                 }
@@ -83,7 +84,7 @@ namespace TypeD.Models
             }
         }
 
-        public T GetContext<T>(SettingLevel settingLevel = SettingLevel.Local) where T : SettingContext, new()
+        public T GetContext<T>(SettingLevel settingLevel = SettingLevel.User) where T : SettingContext, new()
         {
             T retVal = Contexts[SettingLevel.System].FirstOrDefault(c => c.GetType() == typeof(T)) as T;
             if (retVal == null) return null;
@@ -101,7 +102,7 @@ namespace TypeD.Models
         {
             if(settingLevel.HasValue)
             {
-                settingContext.Level = settingLevel.Value;
+                settingContext.Init(settingLevel.Value);
             }
             var i = Contexts[settingContext.Level].FindIndex(s => s.GetType() == settingContext.GetType());
             Contexts[settingContext.Level][i] = settingContext;
@@ -144,10 +145,10 @@ namespace TypeD.Models
         {
             if(settingLevel == SettingLevel.System)
                 return $"{Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)}/{SettingsPath}";
-            if(settingLevel == SettingLevel.Workspace)
+            if(settingLevel == SettingLevel.Project)
                 return $"{project.Location}/{SettingsPath}";
-            if (settingLevel == SettingLevel.Local)
-                return $"{Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)}/{SettingsPath}";
+            if (settingLevel == SettingLevel.User)
+                return $"{Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)}/{SettingsPath}/{project.ProjectName}";
             return "";
         }
     }

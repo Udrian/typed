@@ -36,8 +36,7 @@ namespace TypeD.Models.Data.SaveContexts
                 {
                     if (!setting.ShouldSave) continue;
 
-                    var paths = new List<string>() { SettingModel.GetPath(project, SettingLevel.System), SettingModel.GetPath(project, SettingLevel.Workspace), SettingModel.GetPath(project, SettingLevel.Local) };
-                    var path = paths[(int)setting.Level];
+                    var path = SettingModel.GetPath(project, setting.Level);
                     var filePath = $"{path}/{SettingModel.GetName(setting.GetType())}.json";
                     JSON.Serialize(setting, filePath);
                     setting.ShouldSave = false;

@@ -9,10 +9,10 @@ namespace TypeD.Models.Data
     {
         /// <summary>Settings shared by all workspaces of the user.</summary>
         System = 0,
-        /// <summary>Settings of the current workspace.</summary>
-        Workspace,
-        /// <summary>Settings local to the current project.</summary>
-        Local
+        /// <summary>Settings of the current project.</summary>
+        Project,
+        /// <summary>Settings local to the current project and user.</summary>
+        User
     }
 
     /// <summary>Gives a setting context the name used for its setting file.</summary>
