@@ -1,6 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace TypeD.Models.Data
 {
@@ -119,6 +117,12 @@ namespace TypeD.Models.Data
     /// </summary>
     public class SettingContext
     {
+        /// <summary>Names explicitly stored at this scope; null preserves legacy default-value inheritance.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public HashSet<string> Overrides { get; set; }
+
+        [JsonIgnore]
+        internal Dictionary<string, string> OriginalValues { get; set; }
         // Properties
         /// <summary>Gets the level the context was loaded from.</summary>
         [JsonIgnore]
@@ -143,7 +147,7 @@ namespace TypeD.Models.Data
                 if (property.PropertyType.GetInterfaces().Contains(typeof(ISetting)))
                 {
                     var settingProperty = property.GetValue(this) as ISetting;
-                    settingProperty.SetLevel(settingLevel);
+                    settingProperty?.SetLevel(settingLevel);
                 }
             }
         }
@@ -162,7 +166,8 @@ namespace TypeD.Models.Data
                 var settingProperty = property.GetValue(this) as ISetting;
                 var newSettingProperty = property.GetValue(newContext) as ISetting;
                 var mergedSettingProperty = property.GetValue(mergeContext) as ISetting;
-                if (!mergedSettingProperty.GetValue().Equals(settingProperty.GetDefaultValue()))
+                if (mergedSettingProperty != null && (mergeContext.Overrides?.Contains(property.Name) ??
+                    !Equals(mergedSettingProperty.GetValue(), settingProperty.GetDefaultValue())))
                 {
                     newSettingProperty.SetValue(mergedSettingProperty.GetValue());
                     newSettingProperty.SetLevel(mergedSettingProperty.GetLevel());

@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using TypeD.Helpers;
 using TypeD.Models.Interfaces;
 
@@ -38,7 +40,14 @@ namespace TypeD.Models.Data.SaveContexts
 
                     var path = SettingModel.GetPath(project, setting.Level);
                     var filePath = $"{path}/{SettingModel.GetName(setting.GetType())}.json";
-                    JSON.Serialize(setting, filePath);
+                    var document = JsonSerializer.SerializeToNode(setting, setting.GetType(), JSON.CreateOptions()).AsObject();
+                    if (setting.Overrides != null)
+                    {
+                        foreach (var property in setting.GetType().GetProperties()
+                            .Where(property => typeof(ISetting).IsAssignableFrom(property.PropertyType)))
+                            if (!setting.Overrides.Contains(property.Name)) document.Remove(property.Name);
+                    }
+                    JSON.Serialize(document, filePath);
                     setting.ShouldSave = false;
                 }
             });

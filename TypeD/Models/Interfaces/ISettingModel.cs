@@ -6,6 +6,16 @@ namespace TypeD.Models.Interfaces
     /// <summary>Model that manages setting contexts.</summary>
     public interface ISettingModel : IModel
     {
+        /// <summary>Returns whether this setting (or dictionary entry) has an explicit project default.</summary>
+        bool HasProjectDefault(ISetting setting, string entry = null);
+        /// <summary>Returns whether this setting or dictionary entry is explicitly overridden by the user.</summary>
+        bool HasUserOverride(ISetting setting, string entry = null);
+        /// <summary>Gets the project default, or the declared fallback when there is none.</summary>
+        object GetRevertValue(ISetting setting, string entry = null, object fallback = null);
+        /// <summary>Stores or removes just this setting's project default and persists the project context.</summary>
+        Task SetProjectDefaultAsync(Project project, ISetting setting, object value, bool remove = false, string entry = null);
+        /// <summary>Removes a user override so the setting inherits lower scopes again.</summary>
+        void ClearUserOverride(ISetting setting, string entry = null);
         /// <summary>Loads a setting context for a project.</summary>
         /// <typeparam name="T">The setting context type.</typeparam>
         /// <param name="project">The project.</param>
