@@ -10,6 +10,9 @@ namespace TypeD.Models.Data
     /// hierarchical and compositional relationships between components.</remarks>
     public class Component
     {
+        internal Dictionary<string, int> FormatVersions { get; set; } = new();
+        internal Dictionary<string, System.Text.Json.JsonElement> ExtensionData { get; set; } = new();
+
         // Properties
         /// <summary>
         /// Gets the unique identifier associated with the current object.

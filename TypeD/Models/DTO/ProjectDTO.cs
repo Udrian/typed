@@ -2,7 +2,7 @@
 
 namespace TypeD.Models.DTO
 {
-    class ProjectDTO
+    class ProjectDTO : VersionedDocumentDTO
     {
         public string ProjectName { get; set; }
         public string CSSolutionPath { get; set; }

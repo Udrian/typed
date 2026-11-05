@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using System.Text.Json;
 using TypeD.Code;
 using TypeD.Helpers;
 using TypeD.Models.Data;
@@ -162,7 +163,9 @@ namespace TypeD.Models.Providers
             }
 
             Report(0, "Reading project file");
-            var projectData = JSON.Deserialize<ProjectDTO>(projectFilePath);
+            var formats = ResourceModel.Get<IFormatVersionModel>();
+            // Module versions cannot be checked until the project dependencies have been loaded.
+            var projectData = formats.Read<ProjectDTO>(projectFilePath, FormatDocumentKind.Project, coreOnly: true);
             var project = new Project(Path.GetDirectoryName(projectFilePath), projectData);
 
             Report(5, "Initializing project");
@@ -189,6 +192,7 @@ namespace TypeD.Models.Providers
             });
 
             Report(70, "Loading assemblies");
+            var formatsUpgraded = UpgradeFormats(project, projectFilePath);
             ResourceModel.Get<IIconModel>().Sync(project);
             // The modules are known now, so watch the source of the local ones as well
             ProjectModel.RefreshWatching(project);
@@ -200,12 +204,13 @@ namespace TypeD.Models.Providers
             Report(85, "Restoring project");
             await RestoreModel.Restore(project);
 
-            if (regenerateComponentCode)
+            if (regenerateComponentCode || formatsUpgraded)
             {
                 Report(90, "Generating component code");
                 ProjectModel.StopWatching(project);
                 try
                 {
+                    ProjectModel.InitAndSaveCode(project, new ProgramCode());
                     foreach (var component in ComponentProvider.ListAll(project))
                     {
                         component.Template.Init();
@@ -231,12 +236,40 @@ namespace TypeD.Models.Providers
             {
                 JSON.Serialize(new ProjectDTO()
                 {
+                    FormatVersions = ResourceModel.Get<IFormatVersionModel>().GetCurrentVersions(FormatDocumentKind.Project, project.FormatVersions),
+                    ExtensionData = project.ExtensionData,
                     ProjectName = project.ProjectName,
                     CSSolutionPath = project.CSSolutionPath,
                     CSProjName = project.CSProjName,
                     StartScene = project.StartScene
                 }, project.ProjectFilePath);
             });
+        }
+
+        private bool UpgradeFormats(Project project, string projectFilePath)
+        {
+            var formats = ResourceModel.Get<IFormatVersionModel>();
+            var files = new List<(string Path, FormatDocumentKind Kind)> { (projectFilePath, FormatDocumentKind.Project) };
+            var componentsPath = Path.Combine(project.ProjectTypeOPath, "components");
+            if (Directory.Exists(componentsPath))
+                files.AddRange(Directory.EnumerateFiles(componentsPath, "*.component", SearchOption.AllDirectories)
+                    .OrderBy(path => path, StringComparer.Ordinal)
+                    .Select(path => (path, FormatDocumentKind.Component)));
+
+            var changed = formats.UpgradeFiles(files, (path, document) =>
+            {
+                if (path != projectFilePath)
+                    return;
+                var converted = document.Deserialize<ProjectDTO>(JSON.CreateOptions());
+                if (converted.ProjectName != project.ProjectName || converted.CSSolutionPath != project.CSSolutionPath ||
+                    converted.CSProjName != project.CSProjName)
+                    throw new InvalidDataException("Module project conversions cannot change ProjectName, CSSolutionPath or CSProjName; these identify the dependencies used to load the converters.");
+            });
+            var data = formats.Read<ProjectDTO>(projectFilePath, FormatDocumentKind.Project);
+            project.StartScene = data.StartScene;
+            project.FormatVersions = data.FormatVersions;
+            project.ExtensionData = data.ExtensionData;
+            return changed;
         }
 
         // Internal

@@ -111,7 +111,7 @@ namespace TypeD.Models.Providers
             }
             else
             {
-                var dto = JSON.Deserialize<ComponentDTO>(path);
+                var dto = ResourceModel.Get<IFormatVersionModel>().Read<ComponentDTO>(path, FormatDocumentKind.Component);
                 component = TranslateComponentDTO(project, dto);
             }
 
@@ -126,6 +126,8 @@ namespace TypeD.Models.Providers
         {
             var component = new Component()
             {
+                FormatVersions = dto.FormatVersions,
+                ExtensionData = dto.ExtensionData,
                 ClassName = dto.ClassName,
                 Interfaces = dto.Interfaces.Select(
                                 i => AppDomain.CurrentDomain.GetAssemblies()
@@ -334,6 +336,8 @@ namespace TypeD.Models.Providers
 
             var clone = new Component
             {
+                FormatVersions = new Dictionary<string, int>(source.FormatVersions),
+                ExtensionData = new Dictionary<string, JsonElement>(source.ExtensionData),
                 ClassName = source.ClassName,
                 Namespace = source.Namespace,
                 BaseInheritedComponent = source.BaseInheritedComponent,

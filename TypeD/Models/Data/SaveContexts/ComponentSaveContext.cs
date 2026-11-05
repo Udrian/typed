@@ -15,6 +15,7 @@ namespace TypeD.Models.Data.SaveContexts
         // Models
         IProjectModel ProjectModel { get; set; }
         IHookModel HookModel { get; set; }
+        IFormatVersionModel FormatVersionModel { get; set; }
 
         // Providers
         IComponentProvider ComponentProvider { get; set; }
@@ -41,6 +42,7 @@ namespace TypeD.Models.Data.SaveContexts
 
             ProjectModel = resourceModel.Get<IProjectModel>();
             HookModel = resourceModel.Get<IHookModel>();
+            FormatVersionModel = resourceModel.Get<IFormatVersionModel>();
             ComponentProvider = resourceModel.Get<IComponentProvider>();
         }
 
@@ -54,6 +56,8 @@ namespace TypeD.Models.Data.SaveContexts
 
                     JSON.Serialize(new ComponentDTO()
                     {
+                        FormatVersions = FormatVersionModel.GetCurrentVersions(FormatDocumentKind.Component, saveComponent.FormatVersions),
+                        ExtensionData = saveComponent.ExtensionData,
                         ClassName = saveComponent.ClassName,
                         Interfaces = saveComponent.Interfaces.Select(i => i.FullName).ToList(),
                         Namespace = saveComponent.Namespace,

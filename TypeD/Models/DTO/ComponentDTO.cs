@@ -10,7 +10,7 @@ namespace TypeD.Models.DTO
     /// including its class name, namespace, parent <see cref="Component"/>, implemented interfaces, and child <see cref="Component"/>s. It is 
     /// typically used in scenarios where <see cref="Component"/> metadata needs to be serialized, transferred, or
     /// analyzed.</remarks>
-    public class ComponentDTO
+    public class ComponentDTO : VersionedDocumentDTO
     {
         /// <summary>
         /// Gets or sets the name of the <see cref="Component"/> class name.

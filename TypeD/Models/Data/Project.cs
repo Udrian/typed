@@ -9,6 +9,8 @@ namespace TypeD.Models.Data
     /// </summary>
     public class Project
     {
+        internal Dictionary<string, int> FormatVersions { get; set; }
+        internal Dictionary<string, System.Text.Json.JsonElement> ExtensionData { get; set; }
         // Data
         /// <summary>Gets the project name.</summary>
         public string ProjectName { get; private set; }
@@ -64,6 +66,8 @@ namespace TypeD.Models.Data
             CSProjName = projectData.CSProjName;
             Modules = new List<Module>();
             StartScene = projectData.StartScene;
+            FormatVersions = projectData.FormatVersions;
+            ExtensionData = projectData.ExtensionData;
         }
     }
 }

@@ -32,6 +32,7 @@ namespace TypeD
                 new ComponentModel(),
                 new SettingModel(),
                 new PropertyModel(),
+                new FormatVersionModel(),
                 new IconModel(),
                 new PanelModel(),
                 new EditorCommandRegistry(),

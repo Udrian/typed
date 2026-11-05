@@ -561,7 +561,20 @@ namespace TypeD.Models
             module.TypeDModuleInitializer = Activator.CreateInstance(typeDInitType) as TypeDModuleInitializer;
             module.TypeDModuleInitializer.Hooks = HookModel;
             module.TypeDModuleInitializer.Resources = ResourceModel;
-            module.TypeDModuleInitializer.Initializer(project);
+            try
+            {
+                var versions = ResourceModel.Get<IFormatVersionModel>();
+                foreach (var definition in module.TypeDModuleInitializer.FormatVersions)
+                    module.FormatVersionRegistrations.Add(versions.Register(module.Name, definition));
+                module.TypeDModuleInitializer.Initializer(project);
+            }
+            catch
+            {
+                foreach (var registration in module.FormatVersionRegistrations)
+                    registration.Dispose();
+                module.FormatVersionRegistrations.Clear();
+                throw;
+            }
         }
 
         private void UninitializeTypeD(Module module)
@@ -571,7 +584,16 @@ namespace TypeD.Models
             var typeDInitType = module.DevAssembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
             if (typeDInitType == null) return;
 
-            module.TypeDModuleInitializer?.Uninitializer();
+            try
+            {
+                module.TypeDModuleInitializer?.Uninitializer();
+            }
+            finally
+            {
+                foreach (var registration in module.FormatVersionRegistrations)
+                    registration.Dispose();
+                module.FormatVersionRegistrations.Clear();
+            }
         }
 
         private System.Reflection.TypeInfo GetModuleType(Module module)

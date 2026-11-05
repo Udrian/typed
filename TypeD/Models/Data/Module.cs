@@ -64,6 +64,7 @@ namespace TypeD.Models.Data
         /// <summary>Gets or sets the type info of the module's entry type in the loaded assembly.</summary>
         public TypeInfo ModuleTypeInfo { get; set; }
         internal TypeDModuleInitializer TypeDModuleInitializer { get; set; }
+        internal List<IDisposable> FormatVersionRegistrations { get; } = new();
         /// <summary>Gets the product description (dependencies, externals, dev module name) of the module.</summary>
         public ModuleTypeO TypeO
         {
