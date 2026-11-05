@@ -1,5 +1,6 @@
 ﻿using TypeD.Components;
 using TypeD.Models.Data;
+using TypeD.Models.DTO;
 
 namespace TypeD.Models.Providers.Interfaces
 {
@@ -40,6 +41,12 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="component">The component definition to clone.</param>
         /// <returns>A component instance with independent properties and child relationships.</returns>
         public Component CreateInstance(Project project, Component component);
+
+        /// <summary>Captures a node's current properties and complete child hierarchy as independent JSON values.</summary>
+        ComponentChildDTO CaptureNode(Component component);
+
+        /// <summary>Recreates a captured node with a fresh instance id, preserving definition-child identities.</summary>
+        Component RestoreNode(Project project, ComponentChildDTO snapshot);
 
         /// <summary>
         /// Loads a component from the specified project using its fully qualified name.

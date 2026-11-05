@@ -43,6 +43,7 @@ namespace TypeD.Helpers
                 }
                 currentMenu.Items.Add(newMenuItem);
             }
+            newMenuItem.IsEnabled = item.IsEnabled;
             currentMenu = newMenuItem;
 
             foreach (var menu in item.Items)

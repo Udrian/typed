@@ -13,6 +13,8 @@ namespace TypeD.View
         public Action<object> Click { get; set; }
         /// <summary>Gets or sets the name of the view model property whose value is passed to <see cref="Click"/>.</summary>
         public string ClickParameter { get; set; }
+        /// <summary>Gets or sets whether this entry is enabled when the menu is built.</summary>
+        public bool IsEnabled { get; set; } = true;
         /// <summary>The sub items.</summary>
         public List<MenuItem> Items;
 

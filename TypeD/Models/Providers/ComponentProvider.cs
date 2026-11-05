@@ -87,6 +87,34 @@ namespace TypeD.Models.Providers
             return CloneComponent(project, component, new Dictionary<Component, Component>());
         }
 
+        public ComponentChildDTO CaptureNode(Component component)
+        {
+            return new ComponentChildDTO
+            {
+                ID = component.ID,
+                FullName = component.FullName,
+                Removed = component.Removed,
+                Public = component.Public,
+                Properties = component.Properties.Where(property => property.Name != "ID").Select(property => new PropertyDTO
+                {
+                    Name = property.Name,
+                    Value = JsonSerializer.SerializeToElement(property.Value, GetStoredValueType(property.Type), JSON.CreateOptions())
+                }).ToList(),
+                Children = component.Children.Select(CaptureNode).ToList(),
+                ChildOrder = component.Children.Select(child => child.ID).ToList()
+            };
+        }
+
+        public Component RestoreNode(Project project, ComponentChildDTO snapshot)
+        {
+            ArgumentNullException.ThrowIfNull(snapshot);
+            if (Load(project, snapshot.FullName) == null)
+                throw new InvalidDataException($"Component '{snapshot.FullName}' from the copied node is not available in this project.");
+            var copy = TranslateChildDTO(project, snapshot);
+            copy.ID = Guid.NewGuid().ToString();
+            return copy;
+        }
+
         public Component Load(Project project, string fullName)
         {
             if (string.IsNullOrEmpty(fullName)) return null;
@@ -264,6 +292,7 @@ namespace TypeD.Models.Providers
                 child.ID = dto.ID;
             }
             child.Removed = dto.Removed;
+            child.Public = dto.Public;
 
             var propertyOverrides = dto.Properties ?? new List<PropertyDTO>();
             child.Properties = child.Properties.Select(property =>
