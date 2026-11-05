@@ -78,7 +78,7 @@ namespace TypeD.Models
 
             // Nothing that typer or the build depends on has changed since the last resolve, so reuse that result
             var cache = force ? null : ReadCache(project);
-            var cachedModules = cache?.Modules?.Select(m => new Module() { Name = m.Name, Version = m.Version }).ToList();
+            var cachedModules = cache?.Modules?.Select(m => new Module() { Name = m.Name, Author = m.Author, Version = m.Version }).ToList();
             var resolveCurrent = cache != null && cachedModules.Count > 0 && cache.ResolveStamp == ResolveStamp(project, cachedModules);
 
             bool resolved;
@@ -396,7 +396,7 @@ namespace TypeD.Models
                     // Overrides declared by a module are relative to that module, so make the path absolute
                     var version = dependency.IsLocal ? $"{Path.GetFullPath(dependency.LocalPath, path)};local" : dependency.Version;
                     var module = project.Modules.Find(m => m.Name == dependency.Name && m.Version == version)
-                        ?? new Module() { Name = dependency.Name, Version = version };
+                        ?? new Module() { Name = dependency.Name, Author = dependency.Author, Version = version };
                     modules.Add(module);
 
                     if (File.Exists(module.TypeOPath))
@@ -437,6 +437,7 @@ namespace TypeD.Models
         private class ModuleCacheEntry
         {
             public string Name { get; set; }
+            public string Author { get; set; }
             public string Version { get; set; }
         }
 
@@ -466,7 +467,7 @@ namespace TypeD.Models
                 {
                     ResolveStamp = ResolveStamp(project, project.Modules),
                     BuildStamp = built ? BuildStamp(project) : null,
-                    Modules = project.Modules.Select(m => new ModuleCacheEntry() { Name = m.Name, Version = m.Version }).ToList()
+                    Modules = project.Modules.Select(m => new ModuleCacheEntry() { Name = m.Name, Author = m.Author, Version = m.Version }).ToList()
                 };
                 Directory.CreateDirectory(Path.GetDirectoryName(CachePath(project)));
                 File.WriteAllText(CachePath(project), JsonSerializer.Serialize(cache));

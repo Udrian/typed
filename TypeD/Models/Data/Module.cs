@@ -16,6 +16,8 @@ namespace TypeD.Models.Data
         // Data
         /// <summary>Gets or sets the module name.</summary>
         public string Name { get; set; }
+        /// <summary>Gets or sets the module author (GitHub owner).</summary>
+        public string Author { get; set; }
         /// <summary>Gets or sets the module version; a ";local" suffix marks a module loaded from a local path.</summary>
         public string Version { get; set; }
         /// <summary>Gets a value indicating whether the module is loaded from a local path instead of the module cache.</summary>
@@ -25,7 +27,7 @@ namespace TypeD.Models.Data
 
         // Paths
         // Modules are built from source, so the dll is located in the project's bin output instead of a hardcoded configuration and framework
-        internal string ModulePath { get { return IsLocal ? Version.Replace(";local", "") : Path.Combine(ModuleModel.ModuleCachePath, Name, Version); } }
+        internal string ModulePath { get { return IsLocal ? Version.Replace(";local", "") : Path.Combine(ModuleModel.ModuleCachePath, Author, Name, Version); } }
         internal string ModuleDLLPath { get { return FindDLL(Name); } }
         internal string ModuleDevDLLPath { get { return HaveDevModule ? FindDLL(TypeO.DevModuleName) : ""; } }
         internal string TypeOPath { get { return Path.Combine(ModulePath, "typeo.json"); } }
