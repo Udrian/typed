@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -349,7 +350,9 @@ namespace TypeD.Models
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
-            foreach (var arg in new[] { "build", target, "-c", "Debug", "--verbosity", verbosity }) startInfo.ArgumentList.Add(arg);
+            // NuGet assemblies are copied next to the module dll, since ModuleLoadContext resolves from that
+            // folder and the editor does not ship the packages the modules use
+            foreach (var arg in new[] { "build", target, "-c", "Debug", "--verbosity", verbosity, "-p:CopyLocalLockFileAssemblies=true" }) startInfo.ArgumentList.Add(arg);
 
             using var process = new Process { StartInfo = startInfo };
             process.OutputDataReceived += (_, e) => { if (e.Data != null) output?.Invoke(e.Data); };
@@ -555,7 +558,7 @@ namespace TypeD.Models
         {
             if (!module.HaveDevModule || module.DevAssembly == null) return;
 
-            var typeDInitType = module.DevAssembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
+            var typeDInitType = GetLoadableTypes(module.DevAssembly).FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
             if (typeDInitType == null) return;
 
             module.TypeDModuleInitializer = Activator.CreateInstance(typeDInitType) as TypeDModuleInitializer;
@@ -579,11 +582,8 @@ namespace TypeD.Models
 
         private void UninitializeTypeD(Module module)
         {
-            if (!module.HaveDevModule || module.DevAssembly == null) return;
-
-            var typeDInitType = module.DevAssembly.GetTypes().FirstOrDefault(t => { return t.IsSubclassOf(typeof(TypeDModuleInitializer)); });
-            if (typeDInitType == null) return;
-
+            // The stored initializer is used instead of reflecting over the assembly, since a module whose
+            // references can no longer be resolved must still be possible to unload
             try
             {
                 module.TypeDModuleInitializer?.Uninitializer();
@@ -596,15 +596,30 @@ namespace TypeD.Models
             }
         }
 
+        // Skips the types a module cannot load, so one built against assemblies the editor cannot resolve does not crash loading
+        private IEnumerable<Type> GetLoadableTypes(Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                LogModel.Log($"Some types in {assembly.GetName().Name} could not be loaded: " +
+                    string.Join(" ", e.LoaderExceptions.Where(x => x != null).Select(x => x.Message).Distinct()));
+                return e.Types.Where(t => t != null);
+            }
+        }
+
         private System.Reflection.TypeInfo GetModuleType(Module module)
         {
             if (module.Name == "TypeOCore") return null;
             System.Reflection.TypeInfo moduleType = null;
-            foreach (var type in module.Assembly.DefinedTypes)
+            foreach (var type in GetLoadableTypes(module.Assembly))
             {
                 if (type?.BaseType?.FullName?.StartsWith("TypeOEngine.Typedeaf.Core.Engine.Module") == true)
                 {
-                    moduleType = type;
+                    moduleType = type.GetTypeInfo();
                     break;
                 }
             }
