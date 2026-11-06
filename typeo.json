@@ -20,13 +20,39 @@
     {
       "Name": "TypeD",
       "type": "",
-      "depends_on": []
+      "depends_on": [],
+      "propertyGroup": {
+        "Nullable": "disable"
+      },
+      "packageReferences": {
+        "Avalonia.Diagnostics": {
+          "IncludeAssets": "None",
+          "PrivateAssets": "All",
+          "Condition": "'$(Configuration)' != 'Debug'"
+        }
+      }
     },
     {
       "Name": "TypeDTest",
       "type": "test",
       "depends_on": [
         "TypeD"
+      ],
+      "propertyGroup": {
+        "IsPackable": "false"
+      },
+      "packageReferences": {
+        "coverlet.collector": {
+          "PrivateAssets": "all",
+          "IncludeAssets": "runtime; build; native; contentfiles; analyzers; buildtransitive"
+        },
+        "xunit.runner.visualstudio": {
+          "PrivateAssets": "all",
+          "IncludeAssets": "runtime; build; native; contentfiles; analyzers; buildtransitive"
+        }
+      },
+      "usingStatements": [
+        "Xunit"
       ]
     }
   ]
