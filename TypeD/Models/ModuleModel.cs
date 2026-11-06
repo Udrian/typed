@@ -108,7 +108,7 @@ namespace TypeD.Models
             var moduleIndex = 0;
             foreach (var module in project.Modules)
             {
-                var moduleStart = 40 + 55 * moduleIndex / Math.Max(moduleCount, 1);
+                var moduleStart = 40 + 50 * moduleIndex / Math.Max(moduleCount, 1);
                 var step = $"Module {moduleIndex + 1}/{moduleCount}: {module.Name}";
                 if (!buildCurrent)
                 {
@@ -121,12 +121,20 @@ namespace TypeD.Models
                     Report(moduleStart, "Building modules", $"Building {module.Name} ({step})", 100 * moduleIndex / Math.Max(moduleCount, 1));
                     await Build(module);
                 }
-                if (module.Assembly == null)
-                {
-                    Report(moduleStart, "Loading modules", $"Loading {module.Name}", 100 * (moduleIndex + 1) / Math.Max(moduleCount, 1));
-                    LoadAssembly(project, module);
-                }
                 moduleIndex++;
+            }
+
+            // Every assembly is loaded before any is initialized, since initializing resolves the modules it
+            // depends on; a module initialized earlier would bind a copy from its own bin folder instead
+            foreach (var module in project.Modules.Where(m => m.Assembly == null))
+            {
+                LoadAssemblyFiles(module);
+            }
+            var pending = project.Modules.Where(m => m.Assembly != null && !m.Initialized).ToList();
+            for (var i = 0; i < pending.Count; i++)
+            {
+                Report(90, "Loading modules", $"Loading {pending[i].Name}", 100 * (i + 1) / pending.Count);
+                InitializeAssembly(project, pending[i]);
             }
 
             if (resolved)
@@ -248,6 +256,7 @@ namespace TypeD.Models
             module.DevAssembly = null;
             module.ModuleTypeInfo = null;
             module.TypeDModuleInitializer = null;
+            module.Initialized = false;
         }
 
         public void ReloadAssemblies(Project project, IEnumerable<Module> modules, Action<Module, int, int> progress = null)
@@ -269,6 +278,9 @@ namespace TypeD.Models
 
         // Assembly loading
         private static readonly ConcurrentDictionary<string, Assembly> ModuleAssemblies = new(StringComparer.OrdinalIgnoreCase);
+        // The modules of the open project by assembly name, so their assemblies can be loaded on demand
+        private static readonly ConcurrentDictionary<string, Module> KnownModules = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object OnDemandLoadLock = new();
         private static readonly Lazy<HashSet<string>> EditorAssemblies = new(() =>
             new HashSet<string>(((AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string) ?? string.Empty)
                 .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
@@ -288,15 +300,43 @@ namespace TypeD.Models
 
         private static Assembly FindModuleAssembly(AssemblyName name)
         {
-            return name.Name != null && ModuleAssemblies.TryGetValue(name.Name, out var assembly) ? assembly : null;
+            if (name.Name == null) return null;
+            if (ModuleAssemblies.TryGetValue(name.Name, out var assembly)) return assembly;
+            return LoadKnownModuleAssembly(name.Name);
+        }
+
+        internal static bool IsKnownModuleAssembly(string name)
+        {
+            return name != null && KnownModules.ContainsKey(name);
+        }
+
+        // A module assembly requested before its module has loaded (while an add or reload is in progress) is
+        // loaded on demand, so the requester is never bound to a copy from another module's bin folder
+        private static Assembly LoadKnownModuleAssembly(string name)
+        {
+            if (!KnownModules.TryGetValue(name, out var module)) return null;
+            lock (OnDemandLoadLock)
+            {
+                if (ModuleAssemblies.TryGetValue(name, out var loaded)) return loaded;
+
+                var isDev = !name.Equals(module.Name, StringComparison.OrdinalIgnoreCase);
+                var path = isDev ? module.ModuleDevDLLPath : module.ModuleDLLPath;
+                if (!File.Exists(path)) return null;
+
+                var assembly = LoadModuleAssembly(module, path);
+                if (isDev) module.DevAssembly = assembly;
+                else module.Assembly = assembly;
+                return assembly;
+            }
         }
 
         private bool LoadAssemblyFiles(Module module)
         {
             if (!File.Exists(module.ModuleDLLPath)) return false;
 
-            module.Assembly = LoadModuleAssembly(module, module.ModuleDLLPath);
-            if (module.HaveDevModule && File.Exists(module.ModuleDevDLLPath))
+            // An assembly already loaded on demand is kept, so every consumer binds the same instance
+            module.Assembly ??= LoadModuleAssembly(module, module.ModuleDLLPath);
+            if (module.HaveDevModule && module.DevAssembly == null && File.Exists(module.ModuleDevDLLPath))
             {
                 module.DevAssembly = LoadModuleAssembly(module, module.ModuleDevDLLPath);
             }
@@ -307,6 +347,7 @@ namespace TypeD.Models
         {
             module.ModuleTypeInfo = GetModuleType(module);
             InitializeTypeD(project, module);
+            module.Initialized = true;
         }
 
         private static Assembly LoadModuleAssembly(Module module, string path)
@@ -390,7 +431,9 @@ namespace TypeD.Models
             {
                 foreach (var dependency in await TyperModel.ListDependencies(path))
                 {
-                    if (dependency.Nuget || dependency.Tags.Count > 0 || dependency.Name == "TypeD") continue;
+                    // Dev-tagged module dependencies are included, since the dev assemblies run inside the
+                    // editor and their dependencies must resolve to loaded modules rather than bin folder copies
+                    if (dependency.Nuget || dependency.Tags.Any(tag => tag != "dev") || dependency.Name == "TypeD") continue;
                     if (!visited.Add(dependency.Name)) continue;
 
                     // Overrides declared by a module are relative to that module, so make the path absolute
@@ -424,6 +467,17 @@ namespace TypeD.Models
             }
             project.Modules.Clear();
             project.Modules.AddRange(modules);
+
+            // Known modules are updated without a clear, so a concurrent resolve never misses an entry
+            foreach (var module in modules)
+            {
+                KnownModules[module.Name] = module;
+                if (module.HaveDevModule) KnownModules[module.TypeO.DevModuleName] = module;
+            }
+            foreach (var stale in KnownModules.Where(known => !modules.Contains(known.Value)).Select(known => known.Key).ToList())
+            {
+                KnownModules.TryRemove(stale, out _);
+            }
         }
 
         // Cache

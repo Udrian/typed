@@ -63,6 +63,8 @@ namespace TypeD.Models.Data
         // Loaded data
         internal Assembly Assembly { get; set; }
         internal Assembly DevAssembly { get; set; }
+        // Whether the loaded assemblies have been initialized; assemblies loaded on demand are initialized by the next resolve
+        internal bool Initialized { get; set; }
         /// <summary>Gets or sets the type info of the module's entry type in the loaded assembly.</summary>
         public TypeInfo ModuleTypeInfo { get; set; }
         internal TypeDModuleInitializer TypeDModuleInitializer { get; set; }

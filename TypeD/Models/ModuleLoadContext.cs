@@ -31,6 +31,8 @@ namespace TypeD.Models
             var module = FindModuleAssembly(assemblyName);
             if (module != null) return module;
             if (ModuleModel.IsEditorAssembly(assemblyName.Name)) return null;
+            // A module assembly that could not be loaded must not be replaced by a copy from this module's bin folder
+            if (ModuleModel.IsKnownModuleAssembly(assemblyName.Name)) return null;
 
             var path = Path.Combine(Folder, $"{assemblyName.Name}.dll");
             return File.Exists(path) ? LoadFile(path) : null;
