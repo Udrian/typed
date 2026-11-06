@@ -1,5 +1,6 @@
 using TypeD.Models.Data;
 
+namespace TypeDTest;
 public class ComponentChangeTests
 {
     [Fact]

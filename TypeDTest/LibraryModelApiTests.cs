@@ -9,6 +9,8 @@ using TypeD.Models.Interfaces;
 using TypeD.Models.Providers.Interfaces;
 using TypeD.ViewModel;
 
+namespace TypeDTest;
+
 public class LibraryModelApiTests
 {
     [Fact]

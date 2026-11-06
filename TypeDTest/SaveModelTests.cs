@@ -2,6 +2,8 @@ using TypeD;
 using TypeD.Models.Data;
 using TypeD.Models.Interfaces;
 
+namespace TypeDTest;
+
 public class SaveModelTests
 {
     [Fact]

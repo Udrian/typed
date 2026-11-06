@@ -4,6 +4,8 @@ using TypeD.Models.Data;
 using TypeD.Models.Data.Hooks;
 using TypeD.Models.Interfaces;
 
+namespace TypeDTest;
+
 public class ProjectBuildTests
 {
     [Theory]
