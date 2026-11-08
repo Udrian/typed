@@ -1,5 +1,6 @@
 ﻿using TypeD.Models;
 using TypeD.Models.Data;
+using TypeD.Models.Data.PropertyDefinitions;
 using TypeD.Models.Data.SettingContexts;
 using TypeD.Models.Interfaces;
 using TypeD.Models.Providers;
@@ -47,6 +48,12 @@ namespace TypeD
                 new ComponentProvider(),
                 new ContentProvider()
             });
+            var properties = resourceModel.Get<IPropertyModel>();
+            properties.Register(new BooleanPropertyDefinition());
+            properties.Register(new StringPropertyDefinition());
+            properties.Register(new Int32PropertyDefinition());
+            properties.Register(new DoublePropertyDefinition());
+            properties.Register(new EnumPropertyDefinition());
         }
 
         /// <summary>Starts watching a loaded project and initializes its settings.</summary>

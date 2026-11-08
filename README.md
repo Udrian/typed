@@ -1,5 +1,18 @@
 # typed
 
+## Generic Editor Contracts
+
+TypeD provides component selection, clipboard, camera and history services,
+shared command data, icon/drag helpers, and component-tree move validation.
+Primitive bool/string/int/double/enum property definitions are registered by
+TypeD initialization. Numeric text controls live in `TypeD.View.PropertyTemplates`
+and can be reused by both generic and module-specific templates.
+
+Engine-specific creation dialogs are supplied through
+`CreateComponentDialogHook` and `AddCustomPropertyDialogHook`. The editor knows
+only their TypeD data contracts; loaded modules own the windows and engine
+semantics.
+
 ## File format versions and module conversions
 
 Project (`.typeo`) and component (`.component`) JSON documents contain independent

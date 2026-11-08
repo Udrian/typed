@@ -6,6 +6,7 @@ using TypeD;
 using TypeD.Commands;
 using TypeD.Helpers;
 using TypeD.Models.Data;
+using TypeD.Models.Data.PropertyDefinitions;
 using TypeD.Models.Data.Hooks;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
@@ -17,6 +18,30 @@ namespace TypeDTest;
 
 public class LibraryModelApiTests
 {
+    [Fact]
+    public void Init_RegistersPrimitiveEditorsWithoutEngineModules()
+    {
+        var properties = InitializeResources().Get<IPropertyModel>();
+        foreach (var type in new[] { typeof(bool), typeof(string), typeof(int), typeof(double), typeof(Enum) })
+        {
+            var definition = properties.Get(type);
+            Assert.NotNull(definition);
+            Assert.Same(typeof(TypeDInit).Assembly, definition.GetType().Assembly);
+        }
+        Assert.IsType<DoublePropertyDefinition>(properties.Get(typeof(double)));
+    }
+
+    [Fact]
+    public void ComponentMoveRules_RejectsMovesIntoOwnDescendants()
+    {
+        var parent = new Component();
+        var node = new Component();
+        var descendant = new Component();
+        typeof(Component).GetProperty(nameof(Component.ParentComponent)).SetValue(node, parent);
+        typeof(Component).GetProperty(nameof(Component.ParentComponent)).SetValue(descendant, node);
+        Assert.False(TypeD.Models.ComponentMoveRules.TryResolve(node, descendant, MovePosition.Child, out _, out _));
+    }
+
     [Fact]
     public void Init_RegistersBuiltInModelAndProviderInterfaces()
     {
@@ -250,7 +275,7 @@ public class LibraryModelApiTests
 
         propertyModel.Unregister(typeof(PropertyApiBase));
         Assert.Null(propertyModel.Get(typeof(PropertyApiDerived)));
-        Assert.Empty(propertyModel.List());
+        Assert.DoesNotContain(propertyModel.List(), definition => definition.Type == typeof(PropertyApiBase));
     }
 
     [Fact]
