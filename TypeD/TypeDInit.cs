@@ -35,6 +35,10 @@ namespace TypeD
                 new FormatVersionModel(),
                 new IconModel(),
                 new PanelModel(),
+                new CommandHistoryModel(),
+                new NodeSelectionModel(),
+                new ViewerCameraModel(),
+                new NodeClipboardModel(),
                 new EditorCommandRegistry(),
             // Providers
                 new RecentProvider(),
