@@ -1,6 +1,6 @@
 {
   "name": "TypeD",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "externals": [],
   "dependencies": [
     "Avalonia-12.1.4;nuget",
