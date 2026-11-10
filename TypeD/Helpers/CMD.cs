@@ -7,7 +7,7 @@ namespace TypeD.Helpers
 {
     // TODO: Make this into a Model instead
     /// <summary>
-    /// Runs PowerShell commands and reports their output.
+    /// Runs commands in PowerShell on Windows or Bash on Unix and reports their output.
     /// </summary>
     public static class CMD
     {
@@ -21,20 +21,20 @@ namespace TypeD.Helpers
             Output?.Invoke(output);
         }
 
-        /// <summary>Runs a single command in PowerShell.</summary>
+        /// <summary>Runs a single command in the platform's shell.</summary>
         /// <param name="cmd">The command.</param>
         public static async Task Run(string cmd)
         {
             await Run(new string[] { cmd });
         }
 
-        /// <summary>Runs commands in sequence in one PowerShell session and waits for it to exit.</summary>
+        /// <summary>Runs commands in sequence in one shell session and waits for it to exit.</summary>
         /// <param name="cmds">The commands.</param>
         public static async Task Run(string[] cmds)
         {
             var process = new Process();
             var info = new ProcessStartInfo();
-            info.FileName = "powershell.exe";
+            info.FileName = OperatingSystem.IsWindows() ? "powershell.exe" : "bash";
             info.RedirectStandardInput = true;
             info.UseShellExecute = false;
             info.RedirectStandardOutput = true;
@@ -95,4 +95,3 @@ namespace TypeD.Helpers
         }
     }
 }
-
