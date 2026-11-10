@@ -394,9 +394,69 @@ namespace TypeD.Models
 
         private void InitializeAssembly(Project project, Module module)
         {
+            CopyExternals(project, module);
             module.ModuleTypeInfo = GetModuleType(module);
             InitializeTypeD(project, module);
             module.Initialized = true;
+        }
+
+        // The module's external files (untagged for the game module, ';dev' for the dev module) are copied into the
+        // project when the module loads, so the game and the editor find them relative to the project folder
+        private void CopyExternals(Project project, Module module)
+        {
+            if (project == null) return;
+
+            foreach (var external in module.TypeO?.Externals ?? Enumerable.Empty<string>())
+            {
+                var parts = external.Split(';');
+                var tags = parts.Skip(1).ToList();
+                // Test files and files with unknown tags stay in the module
+                if (tags.Any(tag => tag != "dev")) continue;
+
+                // A '/**' suffix selects a whole folder; folders are always copied with everything in them
+                var path = parts[0].Replace('/', Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar, '*');
+
+                // Externals live in the module root or in the folder of the project they belong to
+                var projectFolder = (tags.Contains("dev") ? module.TypeO.DevModuleName : null) ?? module.Name;
+                var source = new[] { Path.Combine(module.ModulePath, path), Path.Combine(module.ModulePath, projectFolder, path) }
+                    .FirstOrDefault(candidate => File.Exists(candidate) || Directory.Exists(candidate));
+                if (source == null)
+                {
+                    LogModel.Log($"External '{parts[0]}' of module {module.Name} was not found");
+                    continue;
+                }
+
+                try
+                {
+                    CopyExternal(source, Path.Combine(project.Location, path));
+                }
+                catch (Exception e)
+                {
+                    LogModel.Log($"Could not copy external '{parts[0]}' of module {module.Name}: {e.Message}");
+                }
+            }
+        }
+
+        // Copies a file or a folder with everything in it, keeping files that are already up to date
+        private static void CopyExternal(string source, string target)
+        {
+            if (File.Exists(source))
+            {
+                CopyExternalFile(source, target);
+                return;
+            }
+            foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+            {
+                CopyExternalFile(file, Path.Combine(target, Path.GetRelativePath(source, file)));
+            }
+        }
+
+        private static void CopyExternalFile(string source, string target)
+        {
+            if (File.Exists(target) && File.GetLastWriteTimeUtc(target) >= File.GetLastWriteTimeUtc(source)) return;
+
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+            File.Copy(source, target, overwrite: true);
         }
 
         private static Assembly LoadModuleAssembly(Module module, string path)

@@ -179,6 +179,9 @@ namespace TypeD.Models.Providers
                 ModuleModel.UnloadAssemblies(LoadedProject);
             }
             LoadedProject = project;
+            // The game and its modules use paths relative to the project (e.g. shaders), both inside the
+            // editor's viewers and when the game runs, so the editor works from the project folder
+            Directory.SetCurrentDirectory(project.Location);
 
             // Prepare
             Report(10, "Resolving modules");

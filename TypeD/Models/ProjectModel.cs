@@ -387,7 +387,12 @@ namespace TypeD.Models
             var fileToRun = Path.Combine(project.ProjectBuildOutputPath, $"{project.CSProjName}.exe");
             if(File.Exists(fileToRun))
             {
-                Process.Start(fileToRun);
+                // The game finds its external files (e.g. shaders) relative to the project folder
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = fileToRun,
+                    WorkingDirectory = project.Location
+                });
             }
             else
             {
