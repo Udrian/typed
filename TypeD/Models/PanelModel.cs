@@ -90,16 +90,15 @@ namespace TypeD.Models
 
         public void AddViewer<T>() where T : IViewer, new()
         {
-            if (Viewers.Contains(typeof(T)))
-                return;
+            // A reloaded module registers the same viewer as a new Type instance; the entry from the previous
+            // assembly generation is replaced, since creating a viewer from it would run unloaded code
+            Viewers.RemoveAll(v => v.FullName == typeof(T).FullName);
             Viewers.Add(typeof(T));
         }
 
         public void RemoveViewer<T>() where T : IViewer, new()
         {
-            if (!Viewers.Contains(typeof(T)))
-                return;
-            Viewers.Remove(typeof(T));
+            Viewers.RemoveAll(v => v.FullName == typeof(T).FullName);
         }
 
         public IViewer CreateViewer(Project project, string typeName)
