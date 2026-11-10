@@ -209,11 +209,11 @@ namespace TypeD.Models
         {
             HookModel.Shoot(new GameStopHook { Project = project });
 
-            // Every module is reloaded, so modules that use a changed module are bound to its new version as well
-            var modules = project.Modules.Where(m => (m.Assembly != null || changedModules.Contains(m)) && ModuleModel.CanReload(m)).ToList();
+            // The module model also reloads every loaded module initialized after the changed ones,
+            // so modules that use a changed module are bound to its new version as well
             try
             {
-                ModuleModel.ReloadAssemblies(project, modules, (module, index, count) =>
+                ModuleModel.ReloadAssemblies(project, changedModules, (module, index, count) =>
                 {
                     LogModel.Log($"Reloading module {module.Name}");
                     run.UpdateSubTask($"Loading module {module.Name} ({index + 1}/{count})", 100 * index / Math.Max(count + 1, 1));
@@ -226,7 +226,7 @@ namespace TypeD.Models
                 return false;
             }
 
-            run.UpdateSubTask($"Loading {project.ProjectName}", 100 * modules.Count / Math.Max(modules.Count + 1, 1));
+            run.UpdateSubTask($"Loading {project.ProjectName}", 95);
             if (!LoadAssembly(project))
                 return false;
 

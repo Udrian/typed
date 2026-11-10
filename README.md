@@ -13,6 +13,20 @@ Engine-specific creation dialogs are supplied through
 only their TypeD data contracts; loaded modules own the windows and engine
 semantics.
 
+## Module Dependency Loading
+
+Module assemblies are loaded into separate contexts so they can be rebuilt and
+reloaded. Non-module dependencies with matching assembly identities are shared
+across those contexts. This keeps native binding state, such as OpenTK's OpenGL
+entry points, consistent between an embedded viewer and its engine module.
+Registered modules still resolve to their latest loaded assembly before shared
+dependency lookup.
+
+Restart the editor after changing loader behavior or native dependency bindings;
+already-loaded assembly copies cannot be merged in a running process.
+Run loader regression checks with
+`dotnet test TypeDTest/TypeDTest.csproj --filter FullyQualifiedName~ModuleLoadContextTests`.
+
 ## File format versions and module conversions
 
 Project (`.typeo`) and component (`.component`) JSON documents contain independent

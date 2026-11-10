@@ -68,12 +68,16 @@ namespace TypeD.Models.Interfaces
         /// <param name="project">The project the module is used by.</param>
         /// <param name="module">The module to load.</param>
         public void LoadAssembly(Project project, Module module);
-        /// <summary>Unloads the assemblies of a module.</summary>
+        /// <summary>Unloads the assemblies of a single module, without the modules initialized after it.</summary>
         /// <param name="module">The module to unload.</param>
         public void UnloadAssembly(Module module);
+        /// <summary>Unloads the assemblies of all the project's modules, in the reverse of their initialization order.</summary>
+        /// <param name="project">The project whose modules are unloaded.</param>
+        public void UnloadAssemblies(Project project);
         /// <summary>
-        /// Unloads modules and loads their latest built assemblies again, then initializes them. All modules are loaded before
-        /// any is initialized, so modules that depend on each other use each other's new versions.
+        /// Unloads modules and loads their latest built assemblies again, then initializes them. A reloaded module invalidates
+        /// every module initialized after it, so those are reloaded as well. All modules are loaded before any is initialized,
+        /// and modules initialize after the modules they depend on.
         /// </summary>
         /// <param name="project">The project the modules are used by.</param>
         /// <param name="modules">The modules to reload.</param>

@@ -8,6 +8,8 @@ namespace TypeD.Models
     // Every load gets a new context, since a context can hold only one version of an assembly.
     internal sealed class ModuleLoadContext : AssemblyLoadContext
     {
+        private static readonly object SharedDependencyLock = new();
+        private static readonly Dictionary<string, Assembly> SharedDependencies = new(StringComparer.OrdinalIgnoreCase);
         private readonly string Folder;
         private readonly Func<AssemblyName, Assembly> FindModuleAssembly;
 
@@ -34,8 +36,21 @@ namespace TypeD.Models
             // A module assembly that could not be loaded must not be replaced by a copy from this module's bin folder
             if (ModuleModel.IsKnownModuleAssembly(assemblyName.Name)) return null;
 
-            var path = Path.Combine(Folder, $"{assemblyName.Name}.dll");
-            return File.Exists(path) ? LoadFile(path) : null;
+            lock (SharedDependencyLock)
+            {
+                // Shared by simple name, so every module and every requested version binds the same instance;
+                // loading the same file once per requested version would split its static state (e.g. GL bindings)
+                if (SharedDependencies.TryGetValue(assemblyName.Name, out var dependency))
+                    return dependency;
+
+                var path = Path.Combine(Folder, $"{assemblyName.Name}.dll");
+                if (!File.Exists(path))
+                    return null;
+
+                dependency = LoadFile(path);
+                SharedDependencies.Add(assemblyName.Name, dependency);
+                return dependency;
+            }
         }
     }
 }

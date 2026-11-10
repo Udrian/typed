@@ -1,19 +1,12 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using TypeD.Code;
-using TypeD.Helpers;
 using TypeD.Models.Data;
 using TypeD.Models.Data.SaveContexts;
-using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
 using Module = TypeD.Models.Data.Module;
 
@@ -130,7 +123,8 @@ namespace TypeD.Models
             {
                 LoadAssemblyFiles(module);
             }
-            var pending = project.Modules.Where(m => m.Assembly != null && !m.Initialized).ToList();
+            // Modules initialize after the modules they depend on, so every module can use its dependencies while initializing
+            var pending = InitializationOrder(project).Where(m => m.Assembly != null && !m.Initialized).ToList();
             for (var i = 0; i < pending.Count; i++)
             {
                 Report(90, "Loading modules", $"Loading {pending[i].Name}", 100 * (i + 1) / pending.Count);
@@ -247,7 +241,7 @@ namespace TypeD.Models
 
         public void UnloadAssembly(Module module)
         {
-            if (module.Assembly == null) return;
+            if (module.Assembly == null && module.DevAssembly == null) return;
 
             UninitializeTypeD(module);
             Unregister(module.Assembly);
@@ -259,20 +253,72 @@ namespace TypeD.Models
             module.Initialized = false;
         }
 
+        public void UnloadAssemblies(Project project)
+        {
+            // Modules deinitialize in the reverse of the order they initialized in
+            var order = InitializationOrder(project);
+            for (var i = order.Count - 1; i >= 0; i--)
+            {
+                UnloadAssembly(order[i]);
+            }
+        }
+
         public void ReloadAssemblies(Project project, IEnumerable<Module> modules, Action<Module, int, int> progress = null)
         {
-            var reloaded = modules.Distinct().ToList();
-            foreach (var module in reloaded)
+            // A reloaded module invalidates every module initialized after it, so the earliest requested
+            // module and everything loaded after it in the initialization order reload together
+            var order = InitializationOrder(project);
+            var requested = modules.Where(m => order.Contains(m) && CanReload(m)).ToHashSet();
+            if (requested.Count == 0) return;
+
+            var reloading = order.Skip(order.FindIndex(requested.Contains))
+                .Where(m => requested.Contains(m) || (m.Assembly != null && CanReload(m))).ToList();
+            for (var i = reloading.Count - 1; i >= 0; i--)
             {
-                UnloadAssembly(module);
+                UnloadAssembly(reloading[i]);
             }
 
             // Every assembly is loaded before any is initialized, since initializing resolves the modules it depends on
-            var loaded = reloaded.Where(LoadAssemblyFiles).ToList();
+            var loaded = reloading.Where(LoadAssemblyFiles).ToList();
             for (var i = 0; i < loaded.Count; i++)
             {
                 progress?.Invoke(loaded[i], i, loaded.Count);
                 InitializeAssembly(project, loaded[i]);
+            }
+        }
+
+        // The order the modules initialize in: every module after the modules it depends on, and modules
+        // without dependencies between them in project order; deinitialization runs in the reverse order
+        private static List<Module> InitializationOrder(Project project)
+        {
+            var byName = new Dictionary<string, Module>(StringComparer.OrdinalIgnoreCase);
+            foreach (var module in project.Modules) byName.TryAdd(module.Name, module);
+
+            var order = new List<Module>();
+            var visited = new HashSet<Module>();
+            void Visit(Module module)
+            {
+                // An already visited module is initialized by an earlier dependent; a dependency cycle keeps the project order
+                if (!visited.Add(module)) return;
+                foreach (var dependency in ModuleDependencies(module, byName)) Visit(dependency);
+                order.Add(module);
+            }
+            foreach (var module in project.Modules) Visit(module);
+            return order;
+        }
+
+        // The project modules a module depends on, from the dependencies in its product description
+        private static IEnumerable<Module> ModuleDependencies(Module module, Dictionary<string, Module> byName)
+        {
+            foreach (var dependency in module.TypeO?.Dependencies ?? Enumerable.Empty<string>())
+            {
+                // A dependency is written 'Author@Name-Version[;tag...]', where the first '-' separates name and version
+                var name = dependency.Split(';')[0];
+                var version = name.IndexOf('-');
+                if (version >= 0) name = name[..version];
+                var author = name.IndexOf('@');
+                if (author >= 0) name = name[(author + 1)..];
+                if (byName.TryGetValue(name, out var found) && found != module) yield return found;
             }
         }
 
@@ -282,9 +328,12 @@ namespace TypeD.Models
         private static readonly ConcurrentDictionary<string, Module> KnownModules = new(StringComparer.OrdinalIgnoreCase);
         private static readonly object OnDemandLoadLock = new();
         private static readonly Lazy<HashSet<string>> EditorAssemblies = new(() =>
-            new HashSet<string>(((AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string) ?? string.Empty)
+        {
+            var appdata = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string) ?? string.Empty;
+            return new HashSet<string>((appdata)
                 .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
-                .Select(Path.GetFileNameWithoutExtension), StringComparer.OrdinalIgnoreCase));
+                .Select(Path.GetFileNameWithoutExtension), StringComparer.OrdinalIgnoreCase);
+        });
 
         static ModuleModel()
         {
@@ -461,9 +510,16 @@ namespace TypeD.Models
                 modules[i] = project.Modules.Find(m => m.Name == modules[i].Name && m.Version == modules[i].Version) ?? modules[i];
             }
 
-            foreach (var removed in project.Modules.Where(m => !modules.Contains(m)))
+            // A removed module invalidates every module initialized after it, so everything from the first removed
+            // module onward unloads in reverse order; the kept ones are loaded and initialized again by the resolve
+            var order = InitializationOrder(project);
+            var firstRemoved = order.FindIndex(m => !modules.Contains(m));
+            if (firstRemoved >= 0)
             {
-                UnloadAssembly(removed);
+                for (var i = order.Count - 1; i >= firstRemoved; i--)
+                {
+                    UnloadAssembly(order[i]);
+                }
             }
             project.Modules.Clear();
             project.Modules.AddRange(modules);
@@ -606,7 +662,56 @@ namespace TypeD.Models
 
         private bool IsBuilt(Module module)
         {
-            return File.Exists(module.ModuleDLLPath) && (!module.HaveDevModule || File.Exists(module.ModuleDevDLLPath));
+            return IsBuiltWithDependencies(module.ModuleDLLPath) && (!module.HaveDevModule || IsBuiltWithDependencies(module.ModuleDevDLLPath));
+        }
+
+        // A module built outside the editor (IDE, dotnet build, CI) does not copy its NuGet assemblies next to the
+        // module assembly and the incremental clean even removes earlier copies, so such a module counts as not
+        // built and is built again by the editor, which restores the NuGet assemblies the editor must load
+        private static bool IsBuiltWithDependencies(string dllPath)
+        {
+            if (!File.Exists(dllPath)) return false;
+
+            var folder = Path.GetDirectoryName(dllPath);
+            return PackageRuntimeAssemblies(dllPath).All(assembly => File.Exists(Path.Combine(folder, assembly)));
+        }
+
+        // The NuGet assemblies the module needs at runtime, from the deps file its build writes
+        private static IEnumerable<string> PackageRuntimeAssemblies(string dllPath)
+        {
+            var depsPath = Path.ChangeExtension(dllPath, ".deps.json");
+            if (!File.Exists(depsPath)) return Enumerable.Empty<string>();
+
+            try
+            {
+                using var deps = JsonDocument.Parse(File.ReadAllText(depsPath));
+                var assemblies = new List<string>();
+                if (!deps.RootElement.TryGetProperty("targets", out var targets) ||
+                    !deps.RootElement.TryGetProperty("libraries", out var libraries)) return assemblies;
+
+                foreach (var target in targets.EnumerateObject())
+                {
+                    foreach (var library in target.Value.EnumerateObject())
+                    {
+                        // Only package assemblies are copied next to the module assembly; projects load as modules or editor assemblies
+                        if (!libraries.TryGetProperty(library.Name, out var info) ||
+                            !info.TryGetProperty("type", out var type) || type.GetString() != "package") continue;
+                        if (!library.Value.TryGetProperty("runtime", out var runtime)) continue;
+
+                        foreach (var assembly in runtime.EnumerateObject())
+                        {
+                            var file = Path.GetFileName(assembly.Name);
+                            if (file != "_._") assemblies.Add(file);
+                        }
+                    }
+                }
+                return assemblies;
+            }
+            catch (Exception)
+            {
+                // An unreadable deps file does not fail the module, the build check then only requires the module assembly
+                return Enumerable.Empty<string>();
+            }
         }
 
         private void InitializeTypeD(Project project, Module module)

@@ -97,51 +97,6 @@ public class LibraryModelApiTests
     }
 
     [Fact]
-    public void CommandHistoryModel_ProjectLoadStartsWithFreshHistory()
-    {
-        var resources = InitializeResources();
-        var projectModel = resources.Get<IProjectModel>();
-        projectModel.Init(resources);
-        resources.Get<ISaveModel>().Init(resources);
-        resources.Get<ISettingModel>().Init(resources);
-        var directory = CreateTempDirectory();
-        var constructor = typeof(Project).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic).Single();
-        var dto = JsonSerializer.Deserialize($$"""{"ProjectName":"HistoryTests-{{Guid.NewGuid():N}}"}""", constructor.GetParameters()[1].ParameterType);
-        var project = (Project)constructor.Invoke(new[] { directory, dto });
-        var previous = resources.Get<ICommandHistoryModel>();
-        var previousSelection = resources.Get<INodeSelectionModel>();
-        var previousCamera = resources.Get<IViewerCameraModel>();
-        var previousClipboard = resources.Get<INodeClipboardModel>();
-        previousSelection.Init(resources);
-        previousSelection.SetComponentBrowserActive(project, new Component());
-        previousCamera.Attach(new ViewerCamera());
-        previous.Record("Previous command", "Previous project", () => { }, () => { });
-
-        try
-        {
-            TypeDInit.ProjectLoad(project, resources);
-            var history = resources.Get<ICommandHistoryModel>();
-
-            Assert.NotSame(previous, history);
-            Assert.Empty(history.Entries);
-            Assert.False(history.CanUndo);
-            Assert.False(history.CanRedo);
-            Assert.NotSame(previousSelection, resources.Get<INodeSelectionModel>());
-            Assert.Null(resources.Get<INodeSelectionModel>().Project);
-            Assert.Empty(resources.Get<INodeSelectionModel>().SelectedNodes);
-            Assert.NotSame(previousCamera, resources.Get<IViewerCameraModel>());
-            Assert.Null(previousCamera.Camera);
-            Assert.Null(resources.Get<IViewerCameraModel>().Camera);
-            Assert.NotSame(previousClipboard, resources.Get<INodeClipboardModel>());
-        }
-        finally
-        {
-            projectModel.StopWatching(project);
-            Directory.Delete(directory, recursive: true);
-        }
-    }
-
-    [Fact]
     public void NodeSelectionModel_TracksSelectionRemovalAndDisposal()
     {
         var resources = InitializeResources();

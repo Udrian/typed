@@ -176,10 +176,7 @@ namespace TypeD.Models.Providers
             // previously loaded project before the new project's modules are initialized
             if (LoadedProject != null && LoadedProject != project)
             {
-                foreach (var module in LoadedProject.Modules)
-                {
-                    ModuleModel.UnloadAssembly(module);
-                }
+                ModuleModel.UnloadAssemblies(LoadedProject);
             }
             LoadedProject = project;
 
