@@ -13,11 +13,11 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="location">The folder to create it in.</param>
         /// <param name="csSolutionPath">The C# solution path.</param>
         /// <param name="csProjName">The C# project name.</param>
-        /// <param name="modulesToAdd">Optional collection of (Author, Name, Version) tuples for modules to add to the project.</param>
+        /// <param name="modulesToAdd">Optional collection of (Author, Name, Version, LocalPath) tuples for modules to add to the project; a non-empty LocalPath adds the module from that local folder.</param>
         /// <param name="progress">Callback reporting progress percentage.</param>
         /// <param name="report">Callback reporting what is being done, including subtasks.</param>
         /// <returns>The created project.</returns>
-        public Task<Project> Create(string projectName, string location, string csSolutionPath, string csProjName, ObservableCollection<(string Author, string Name, string Version)> modulesToAdd = null, Action<int> progress = null, Action<ProgressUpdate> report = null);
+        public Task<Project> Create(string projectName, string location, string csSolutionPath, string csProjName, ObservableCollection<(string Author, string Name, string Version, string LocalPath)> modulesToAdd = null, Action<int> progress = null, Action<ProgressUpdate> report = null);
         /// <summary>Loads a project from its file.</summary>
         /// <param name="projectFilePath">The project file path.</param>
         /// <param name="progress">Callback reporting progress.</param>

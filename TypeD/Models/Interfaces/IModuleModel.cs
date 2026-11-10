@@ -35,6 +35,12 @@ namespace TypeD.Models.Interfaces
         /// <param name="name">The module name.</param>
         /// <param name="path">The folder of the local module.</param>
         public Task<bool> UseLocal(Project project, string name, string path);
+        /// <summary>Adds a local module to the project: a dependency overridden by the local folder.</summary>
+        /// <param name="project">The project.</param>
+        /// <param name="name">The module name.</param>
+        /// <param name="version">The module version, defaults to 0.1.0.</param>
+        /// <param name="path">The folder of the local module.</param>
+        public Task<bool> AddLocal(Project project, string name, string version, string path);
         /// <summary>Stops using a local module and goes back to the released version.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The module name.</param>

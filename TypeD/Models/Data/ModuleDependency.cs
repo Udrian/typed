@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace TypeD.Models.Data
 {
@@ -23,5 +25,29 @@ namespace TypeD.Models.Data
         public string LocalPath { get; set; } = "";
         /// <summary>Gets a value indicating whether the dependency resolves to a local module.</summary>
         public bool IsLocal { get { return !string.IsNullOrEmpty(LocalPath); } }
+
+        /// <summary>Parses a dependency string, for example <c>Author@Name-Version;tag</c>; the first '-' separates name and version.</summary>
+        /// <param name="dependencyString">The dependency string.</param>
+        /// <returns>The parsed dependency.</returns>
+        public static ModuleDependency Parse(string dependencyString)
+        {
+            var parts = dependencyString.Split(';');
+            var head = parts[0];
+            var separator = head.IndexOf('-');
+            var nameAuthor = separator >= 0 ? head[..separator] : head;
+            var at = nameAuthor.IndexOf('@');
+            var parameters = parts.Skip(1).ToList();
+
+            var dependency = new ModuleDependency()
+            {
+                Author = at >= 0 ? nameAuthor[..at] : "",
+                Name = at >= 0 ? nameAuthor[(at + 1)..] : nameAuthor,
+                Version = separator >= 0 ? head[(separator + 1)..] : "",
+                Nuget = parameters.Contains("nuget"),
+                Tags = parameters.Where(p => p != "nuget" && p != "local").ToList()
+            };
+            if (parameters.Contains("local")) dependency.LocalPath = dependency.Version;
+            return dependency;
+        }
     }
 }

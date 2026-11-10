@@ -1,4 +1,6 @@
+using System.Text.Json;
 using TypeD.Models.Data;
+using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
 using TypeD.Models.Providers.Interfaces;
 
@@ -47,6 +49,35 @@ namespace TypeD.Models.Providers
             var module = new Module() { Name = name, Version = version };
 
             return module;
+        }
+
+        public Task<ModuleTypeO> Info(string author, string name, string version)
+        {
+            return TyperModel.GetModuleTypeO(author, name, version);
+        }
+
+        public ModuleList ReadLocal(string path)
+        {
+            var typeOPath = Path.Combine(path, "typeo.json");
+            if (!File.Exists(typeOPath)) return null;
+
+            try
+            {
+                var dto = JsonSerializer.Deserialize<ModuleListModuleDTO>(File.ReadAllText(typeOPath),
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (string.IsNullOrEmpty(dto?.Name) || dto.Type != "module") return null;
+
+                return new ModuleList()
+                {
+                    Name = dto.Name,
+                    Author = "Local",
+                    Versions = new List<ModuleTypeO>() { new ModuleTypeO(dto) }
+                };
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
         }
     }
 }

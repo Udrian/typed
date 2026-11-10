@@ -49,7 +49,7 @@ namespace TypeD.Models.Providers
         }
 
         // Functions
-        public async Task<Project> Create(string projectName, string location, string csSolutionPath, string csProjName, ObservableCollection<(string Author, string Name, string Version)> modulesToAdd = null, Action<int> progress = null, Action<ProgressUpdate> report = null)
+        public async Task<Project> Create(string projectName, string location, string csSolutionPath, string csProjName, ObservableCollection<(string Author, string Name, string Version, string LocalPath)> modulesToAdd = null, Action<int> progress = null, Action<ProgressUpdate> report = null)
         {
             progress = progress ?? (_ => { });
             report = report ?? (_ => { });
@@ -125,7 +125,14 @@ namespace TypeD.Models.Providers
                     report(new ProgressUpdate(75, $"Adding modules", $"{module.Name} ({moduleIndex}/{modulesToAdd.Count})", moduleIndex * 100 / modulesToAdd.Count));
                     try
                     {
-                        await ModuleModel.Add(project, module.Author, module.Name, module.Version);
+                        if (!string.IsNullOrEmpty(module.LocalPath))
+                        {
+                            await ModuleModel.AddLocal(project, module.Name, module.Version, module.LocalPath);
+                        }
+                        else
+                        {
+                            await ModuleModel.Add(project, module.Author, module.Name, module.Version);
+                        }
                     }
                     catch
                     {

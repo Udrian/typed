@@ -15,6 +15,12 @@ namespace TypeD.Models.Interfaces
         /// <summary>Lists the effective dependencies of a project or local module.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         public Task<IEnumerable<ModuleDependency>> ListDependencies(string projectPath);
+        /// <summary>Gets the product description of a released module version, from the module cache or GitHub.</summary>
+        /// <param name="author">The author (GitHub owner) of the module.</param>
+        /// <param name="name">The module name.</param>
+        /// <param name="version">The module version.</param>
+        /// <returns>The product description, or <c>null</c> when it could not be fetched.</returns>
+        public Task<ModuleTypeO> GetModuleTypeO(string author, string name, string version);
         /// <summary>Adds or replaces a dependency in typeo.json.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         /// <param name="dependency">Dependency string, for example <c>Udrian@TypeOCore-0.1.0</c>.</param>

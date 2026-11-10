@@ -144,7 +144,9 @@ namespace TypeD.Models
         {
             if (string.IsNullOrEmpty(author) || string.IsNullOrEmpty(version)) return false;
             await Initialize(project);
-            return await Apply(project, await TyperModel.AddDependency(project.Location, $"{author}@{name}-{version}"));
+            var changed = await TyperModel.AddDependency(project.Location, $"{author}@{name}-{version}");
+            if (changed) await AlignDependencyVersions(project, name);
+            return await Apply(project, changed);
         }
 
         public async Task<bool> Remove(Project project, string name)
@@ -163,7 +165,48 @@ namespace TypeD.Models
         public async Task<bool> Update(Project project, string name = null, string version = null)
         {
             await Initialize(project);
-            return await Apply(project, await TyperModel.UpdateDependency(project.Location, name, version));
+            var changed = await TyperModel.UpdateDependency(project.Location, name, version);
+            if (changed) await AlignDependencyVersions(project, name);
+            return await Apply(project, changed);
+        }
+
+        // Updates the project's direct dependencies to at least the versions the added or updated modules require,
+        // so a module never runs against an older dependency than the one it was released with
+        private async Task AlignDependencyVersions(Project project, string updatedName = null)
+        {
+            try
+            {
+                var direct = (await TyperModel.ListDependencies(project.Location))
+                    .Where(d => !d.Nuget && d.Name != "TypeD" && d.Tags.All(tag => tag == "dev")).ToList();
+
+                var pending = new Queue<ModuleDependency>(direct.Where(d => updatedName == null || d.Name == updatedName));
+                var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                while (pending.Count > 0)
+                {
+                    var current = pending.Dequeue();
+                    if (current.IsLocal || !visited.Add($"{current.Name}-{current.Version}")) continue;
+
+                    var typeO = await TyperModel.GetModuleTypeO(current.Author, current.Name, current.Version);
+                    foreach (var requirement in ModuleSelection.ModuleDependencies(typeO))
+                    {
+                        var dependency = direct.Find(d => d.Name == requirement.Name);
+                        if (dependency == null || dependency.IsLocal) continue;
+                        if (ModuleSelection.CompareVersions(dependency.Version, requirement.Version) >= 0) continue;
+
+                        if (await TyperModel.UpdateDependency(project.Location, requirement.Name, requirement.Version))
+                        {
+                            LogModel.Log($"Updated {requirement.Name} to {requirement.Version}, required by {current.Name}");
+                            dependency.Version = requirement.Version;
+                            // The new version may raise requirements of its own
+                            pending.Enqueue(dependency);
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                LogModel.Log($"Could not align dependency versions: {e.Message}");
+            }
         }
 
         public async Task<bool> UseLocal(Project project, string name, string path)
@@ -186,15 +229,20 @@ namespace TypeD.Models
             return await Apply(project, await TyperModel.UpdateDependency(module.ModulePath));
         }
 
+        public async Task<bool> AddLocal(Project project, string name, string version, string path)
+        {
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(path)) return false;
+            await Initialize(project);
+            if (!await TyperModel.AddDependency(project.Location, $"Local@{name}-{(string.IsNullOrEmpty(version) ? "0.1.0" : version)}")) return false;
+            return await Apply(project, await TyperModel.AddOverride(project.Location, name, path));
+        }
+
         public async Task<bool> CreateLocal(Project project, string name, string outputPath)
         {
             if (!await TyperModel.CreateModule(name, outputPath)) return false;
 
             // The new module has no release yet, so it is added as a dependency that is overridden by the local folder
-            await Initialize(project);
-            var localPath = Path.Combine(outputPath, name.ToLower());
-            if (!await TyperModel.AddDependency(project.Location, $"Local@{name}-0.1.0")) return false;
-            return await Apply(project, await TyperModel.AddOverride(project.Location, name, localPath));
+            return await AddLocal(project, name, "0.1.0", Path.Combine(outputPath, name.ToLower()));
         }
 
         public async Task<bool> Build(Module module)
@@ -312,12 +360,7 @@ namespace TypeD.Models
         {
             foreach (var dependency in module.TypeO?.Dependencies ?? Enumerable.Empty<string>())
             {
-                // A dependency is written 'Author@Name-Version[;tag...]', where the first '-' separates name and version
-                var name = dependency.Split(';')[0];
-                var version = name.IndexOf('-');
-                if (version >= 0) name = name[..version];
-                var author = name.IndexOf('@');
-                if (author >= 0) name = name[(author + 1)..];
+                var name = ModuleDependency.Parse(dependency).Name;
                 if (byName.TryGetValue(name, out var found) && found != module) yield return found;
             }
         }

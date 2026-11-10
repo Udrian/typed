@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using TypeD.Models.Data;
@@ -44,6 +45,24 @@ namespace TypeD.Models
             var result = await Run("dependencies", "-p", projectPath);
             var dependencies = Parse<List<ModuleDependency>>(result);
             return dependencies ?? new List<ModuleDependency>();
+        }
+
+        // Module versions are immutable, so a fetched product description is kept for the lifetime of the editor
+        private readonly ConcurrentDictionary<string, ModuleTypeO> moduleTypeOCache = new();
+
+        public async Task<ModuleTypeO> GetModuleTypeO(string author, string name, string version)
+        {
+            if (string.IsNullOrEmpty(author) || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(version)) return null;
+
+            var key = $"{author}@{name}-{version}";
+            if (moduleTypeOCache.TryGetValue(key, out var cached)) return cached;
+
+            var dto = Parse<ModuleListModuleDTO>(await Run("moduleinfo", "-a", author, "-n", name, "-v", version));
+            if (dto == null) return null;
+
+            var typeO = new ModuleTypeO(dto);
+            moduleTypeOCache[key] = typeO;
+            return typeO;
         }
 
         public async Task<bool> AddDependency(string projectPath, string dependency)
