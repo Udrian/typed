@@ -29,6 +29,7 @@ namespace TypeD
                 new CrashModel(),
                 new UINotifyModel(),
                 new LogModel(),
+                new GameLogModel(),
                 new RestoreModel(),
                 new ComponentModel(),
                 new SettingModel(),

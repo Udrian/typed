@@ -193,7 +193,7 @@ public class CrashModelTests
         return (crash, log);
     }
 
-    private static Project CreateProject(string csProjName)
+    internal static Project CreateProject(string csProjName)
     {
         var constructor = typeof(Project).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic).Single();
         var dtoType = constructor.GetParameters()[1].ParameterType;

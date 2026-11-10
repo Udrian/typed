@@ -16,6 +16,7 @@ namespace TypeD.Models
 
         // Models
         ILogModel LogModel { get; set; }
+        IGameLogModel GameLogModel { get; set; }
         IHookModel HookModel { get; set; }
         IModuleModel ModuleModel { get; set; }
         IProjectModel ProjectModel { get; set; }
@@ -33,6 +34,7 @@ namespace TypeD.Models
         public void Init(IResourceModel resourceModel)
         {
             LogModel = resourceModel.Get<ILogModel>();
+            GameLogModel = resourceModel.Get<IGameLogModel>();
             HookModel = resourceModel.Get<IHookModel>();
             ModuleModel = resourceModel.Get<IModuleModel>();
             ProjectModel = resourceModel.Get<IProjectModel>();
@@ -70,7 +72,8 @@ namespace TypeD.Models
                 Exception = exception,
                 GameCrashed = gameCrashed,
                 CrashedModules = crashedModules,
-                LogOutput = GetCapturedLog()
+                LogOutput = GetCapturedLog(),
+                GameLog = GameLogModel?.GetText()
             };
         }
 

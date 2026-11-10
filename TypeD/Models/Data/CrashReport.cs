@@ -15,7 +15,9 @@ namespace TypeD.Models.Data
         public bool GameCrashed { get; internal set; }
         /// <summary>Gets the names of the modules the crash originated in.</summary>
         public List<string> CrashedModules { get; internal set; } = new List<string>();
-        /// <summary>Gets the captured log output, including the game log, leading up to the crash.</summary>
+        /// <summary>Gets the captured editor log output, including the game's console output, leading up to the crash.</summary>
         public string LogOutput { get; internal set; }
+        /// <summary>Gets the log of the game running inside the editor, leading up to the crash.</summary>
+        public string GameLog { get; internal set; }
     }
 }
