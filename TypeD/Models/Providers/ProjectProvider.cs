@@ -177,12 +177,13 @@ namespace TypeD.Models.Providers
 
             Report(5, "Initializing project");
             ResourceModel.Get<IIconModel>().Sync(project);
-            TypeDInit.ProjectLoad(project, ResourceModel);
+            TypeDInit.ProjectLoad(project, ResourceModel, startWatching: false);
 
             // The module initializers register into shared resources, so unload the modules of the
             // previously loaded project before the new project's modules are initialized
             if (LoadedProject != null && LoadedProject != project)
             {
+                ProjectModel.StopWatching(LoadedProject);
                 ModuleModel.UnloadAssemblies(LoadedProject);
             }
             LoadedProject = project;
@@ -192,18 +193,16 @@ namespace TypeD.Models.Providers
 
             // Prepare
             Report(10, "Resolving modules");
-            await ModuleModel.Resolve(project, update =>
+            if (!await ModuleModel.Resolve(project, update =>
             {
                 // Modules take up 10-70% of the load
                 Report(10 + (int)(60 * (update.Progress / 100f)), update.Message, update.SubTask, update.SubProgress);
-            });
+            }))
+                throw new InvalidOperationException("Could not resolve or build project modules. See the module build log for details.");
 
             Report(70, "Loading assemblies");
             var formatsUpgraded = UpgradeFormats(project, projectFilePath);
             ResourceModel.Get<IIconModel>().Sync(project);
-            // The modules are known now, so watch the source of the local ones as well
-            ProjectModel.RefreshWatching(project);
-
             ProjectModel.LoadAssembly(project);
             Report(78, "Building component tree");
             ProjectModel.BuildComponentTree(project);
@@ -214,25 +213,18 @@ namespace TypeD.Models.Providers
             if (regenerateComponentCode || formatsUpgraded)
             {
                 Report(90, "Generating component code");
-                ProjectModel.StopWatching(project);
-                try
+                ProjectModel.InitAndSaveCode(project, new ProgramCode());
+                foreach (var component in ComponentProvider.ListAll(project))
                 {
-                    ProjectModel.InitAndSaveCode(project, new ProgramCode());
-                    foreach (var component in ComponentProvider.ListAll(project))
-                    {
-                        component.Template.Init();
-                        ProjectModel.InitAndSaveCode(project, component.Template.Code);
-                    }
+                    component.Template.Init();
+                    ProjectModel.InitAndSaveCode(project, component.Template.Code);
+                }
 
-                    Report(96, "Saving project");
-                    await SaveModel.Save(project);
-                }
-                finally
-                {
-                    ProjectModel.StartWatching(project);
-                }
+                Report(96, "Saving project");
+                await SaveModel.Save(project);
             }
 
+            ProjectModel.StartWatching(project);
             Report(100, "Project loaded");
             return project;
         }

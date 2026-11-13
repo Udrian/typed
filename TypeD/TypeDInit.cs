@@ -62,7 +62,17 @@ namespace TypeD
         /// <param name="resourceModel">The resource model.</param>
         public static void ProjectLoad(Project project, IResourceModel resourceModel)
         {
-            resourceModel.Get<IProjectModel>().StartWatching(project);
+            ProjectLoad(project, resourceModel, startWatching: true);
+        }
+
+        /// <summary>Initializes a loaded project's settings and optionally starts watching its files.</summary>
+        /// <param name="project">The loaded project.</param>
+        /// <param name="resourceModel">The resource model.</param>
+        /// <param name="startWatching">Whether to start watching immediately; project loading defers this until module preparation finishes.</param>
+        public static void ProjectLoad(Project project, IResourceModel resourceModel, bool startWatching)
+        {
+            if (startWatching)
+                resourceModel.Get<IProjectModel>().StartWatching(project);
 
             // Settings
             var SettingModel = resourceModel.Get<ISettingModel>();

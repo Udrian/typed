@@ -177,6 +177,146 @@ public class ProjectBuildTests
         }
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Build_ResolvesDependenciesBeforeBuildingModulesAndGame(bool includeCache)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"TypeD-resolve-{Guid.NewGuid():N}");
+        var (project, module) = CreateProjectWithModule(directory);
+        File.WriteAllText(Path.Combine(project.Location, "typeo.json"), "{}");
+        var cachePath = Path.Combine(project.ProjectTypeOPath, "cache", "modules.json");
+        if (includeCache)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(cachePath));
+            File.WriteAllText(cachePath, """{"Modules":[{"Author":"Example","Name":"Core","Version":"2.0"}]}""");
+        }
+
+        var selectedDirectory = Path.Combine(directory, "Core", "2.0");
+        Directory.CreateDirectory(selectedDirectory);
+        var selectedProject = Path.Combine(selectedDirectory, "Core.csproj");
+        var staleProject = Path.Combine(directory, "Core", "1.0", "Core.csproj");
+        File.WriteAllText(selectedProject, """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+              <Target Name="CheckPreparedDependencies" BeforeTargets="PrepareForBuild">
+                <Error Condition="'$(TypeODependenciesResolved)' != 'true'" Text="Dependencies were not prepared before compilation." />
+              </Target>
+            </Project>
+            """);
+        File.WriteAllText(Path.Combine(selectedDirectory, "Value.cs"),
+            """namespace Core; public static class Value { public static string Version => "2.0"; }""");
+        var moduleProject = Path.Combine(directory, "Mod", "Mod", "Mod.csproj");
+        File.WriteAllText(moduleProject, File.ReadAllText(moduleProject).Replace("</Project>",
+            $"""<ItemGroup><ProjectReference Include="{staleProject}" /></ItemGroup></Project>"""));
+        File.WriteAllText(Path.Combine(directory, "Mod", "Mod", "Value.cs"),
+            "namespace Mod; public static class Value { public static string Text() => Core.Value.Version; }");
+
+        var typer = DispatchProxy.Create<ITyperModel, ResolvingTyperProxy>();
+        var resolved = false;
+        ((ResolvingTyperProxy)typer).ResolveDependencies = (path, resolvedModulesPath, output) =>
+        {
+            Assert.Equal(project.Location, path);
+            Assert.Equal(includeCache ? cachePath : null, resolvedModulesPath);
+            Assert.False(Directory.Exists(Path.Combine(directory, "Mod", "Mod", "bin")));
+            File.WriteAllText(moduleProject, File.ReadAllText(moduleProject).Replace(staleProject, selectedProject));
+            resolved = true;
+            return Task.FromResult(true);
+        };
+        var resources = InitializeResources(typer);
+        var updates = new List<BuildStatusChangedHook>();
+        resources.Get<IHookModel>().AddHook<BuildStatusChangedHook>(updates.Add);
+
+        try
+        {
+            Assert.True(await resources.Get<IProjectModel>().Build(project, new[] { module }),
+                string.Join(Environment.NewLine, updates.Last().Errors));
+
+            Assert.True(resolved);
+            Assert.Equal("Resolving dependencies", updates.First().Status);
+            Assert.Equal("2.0", project.Assembly.GetType("Example.Game").GetMethod("Value").Invoke(null, null));
+            Assert.Contains(selectedProject, File.ReadAllText(moduleProject));
+            var progress = updates.Where(update => update.IsBuilding).Select(update => update.Progress).ToList();
+            Assert.Equal(progress.OrderBy(value => value), progress);
+        }
+        finally
+        {
+            resources.Get<IModuleModel>().UnloadAssembly(module);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Build_StopsBeforeCompilingWhenDependencyResolutionFails(bool reportDiagnostic)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"TypeD-resolve-{Guid.NewGuid():N}");
+        var (project, module) = CreateProjectWithModule(directory);
+        File.WriteAllText(Path.Combine(project.Location, "typeo.json"), "{}");
+        var typer = DispatchProxy.Create<ITyperModel, ResolvingTyperProxy>();
+        ((ResolvingTyperProxy)typer).ResolveDependencies = (path, resolvedModulesPath, output) =>
+        {
+            if (reportDiagnostic)
+                output("error TYPER001: Conflicting module versions");
+            return Task.FromResult(false);
+        };
+        var resources = InitializeResources(typer);
+        var updates = new List<BuildStatusChangedHook>();
+        resources.Get<IHookModel>().AddHook<BuildStatusChangedHook>(updates.Add);
+
+        try
+        {
+            Assert.False(await resources.Get<IProjectModel>().Build(project, new[] { module }));
+
+            var completed = updates.Last();
+            Assert.True(completed.IsComplete);
+            Assert.False(completed.Succeeded);
+            Assert.Equal("Dependency resolution failed", completed.Status);
+            var error = Assert.Single(completed.Errors);
+            Assert.Equal(reportDiagnostic ? "Conflicting module versions" : "Could not resolve project module dependencies.", error.Message);
+            Assert.DoesNotContain(updates, update => update.Status.StartsWith("Building "));
+            Assert.False(Directory.Exists(Path.Combine(directory, "Mod", "Mod", "bin")));
+            Assert.False(Directory.Exists(project.ProjectBuildOutputPath));
+            Assert.Null(project.Assembly);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TyperDiscovery_PrefersTopLevelCheckoutUnlessExplicitlyConfigured(bool configureNestedCheckout)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"TypeD-typer-{Guid.NewGuid():N}");
+        var mainTyper = Path.Combine(directory, "typer");
+        var nestedTyper = Path.Combine(directory, "editor", "typer");
+        Directory.CreateDirectory(mainTyper);
+        Directory.CreateDirectory(nestedTyper);
+        File.WriteAllText(Path.Combine(mainTyper, "typer.py"), "");
+        File.WriteAllText(Path.Combine(nestedTyper, "typer.py"), "");
+        var resources = InitializeResources();
+
+        try
+        {
+            var findTyper = resources.Get<ITyperModel>().GetType().GetMethod("FindTyper", BindingFlags.Static | BindingFlags.NonPublic);
+            var script = findTyper.Invoke(null, new object[]
+            {
+                Path.Combine(directory, "editor", "bin"),
+                configureNestedCheckout ? nestedTyper : null
+            });
+
+            Assert.Equal(Path.Combine(configureNestedCheckout ? nestedTyper : mainTyper, "typer.py"), script);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Watching_RebuildsModuleWhenItsSourceChanges()
     {
@@ -256,10 +396,15 @@ public class ProjectBuildTests
             .GetProperty("Assembly", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
             .GetValue(module);
 
-    private static TestResourceModel InitializeResources()
+    private static TestResourceModel InitializeResources(ITyperModel typer = null)
     {
         var resources = new TestResourceModel();
         TypeDInit.Init(resources);
+        if (typer != null)
+        {
+            resources.Remove("TyperModel");
+            resources.Add(typer);
+        }
         resources.Get<IModuleModel>().Init(resources);
         resources.Get<IProjectModel>().Init(resources);
         return resources;
@@ -283,5 +428,17 @@ public class ProjectBuildTests
         dtoType.GetProperty("CSProjName").SetValue(dto, "Example");
         dtoType.GetProperty("CSSolutionPath").SetValue(dto, "Example.sln");
         return (Project)constructor.Invoke(new[] { directory, dto });
+    }
+
+    public class ResolvingTyperProxy : DispatchProxy
+    {
+        public Func<string, string, Action<string>, Task<bool>> ResolveDependencies { get; set; }
+
+        protected override object Invoke(MethodInfo targetMethod, object[] args)
+        {
+            if (targetMethod.Name == nameof(ITyperModel.Resolve) && args.Length == 3)
+                return ResolveDependencies((string)args[0], (string)args[1], (Action<string>)args[2]);
+            throw new NotSupportedException(targetMethod.Name);
+        }
     }
 }

@@ -13,7 +13,7 @@ namespace TypeD.Models.Interfaces
         /// <summary>Resolves the project's dependencies with typer, then builds and loads the resulting modules. Does not save the project.</summary>
         /// <param name="project">The project.</param>
         /// <param name="report">Called with the progress of the resolve, including the git fetches and module builds it runs.</param>
-        /// <returns><c>true</c> if typer resolved the dependencies.</returns>
+        /// <returns><c>true</c> if dependencies were resolved and all modules were built and loaded.</returns>
         public Task<bool> Resolve(Project project, Action<ProgressUpdate> report = null);
         /// <summary>Adds a module to the project.</summary>
         /// <param name="project">The project.</param>

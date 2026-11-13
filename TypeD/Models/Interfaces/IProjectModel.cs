@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using TypeD.Code;
+﻿using TypeD.Code;
 using TypeD.Models.Data;
 
 namespace TypeD.Models.Interfaces
@@ -7,12 +6,12 @@ namespace TypeD.Models.Interfaces
     /// <summary>Model that builds, runs and generates code for projects.</summary>
     public interface IProjectModel : IModel
     {
-        /// <summary>Builds the game and its project references into the editor's build output folder.</summary>
+        /// <summary>Resolves TypeO dependencies using the project's module cache, then builds the game and its project references into the editor's build output folder.</summary>
         /// <param name="project">The project.</param>
         /// <returns><c>true</c> if the build succeeded.</returns>
         public Task<bool> Build(Project project);
         /// <summary>
-        /// Builds the changed modules of a project, then the game. Rebuilt modules that can be reloaded are loaded again together
+        /// Resolves TypeO dependencies using the project's module cache, then builds the changed modules and the game. Rebuilt modules that can be reloaded are loaded again together
         /// with the game, which is stopped and started again around the reload.
         /// </summary>
         /// <param name="project">The project.</param>

@@ -92,11 +92,23 @@ namespace TypeD.Models
                 }
                 else
                 {
-                    LogModel.Log("Could not resolve dependencies, using the modules already known by the project");
+                    LogModel.Log("Could not resolve dependencies; module loading has been stopped.");
+                    return false;
                 }
             }
 
             var buildCurrent = resolveCurrent && cache.BuildStamp == BuildStamp(project) && project.Modules.All(IsBuilt);
+            if (!buildCurrent)
+            {
+                Report(38, "Preparing modules", "Updating module project references");
+                var resolvedModulesPath = CachePath(project);
+                if (!await TyperModel.Resolve(project.Location, File.Exists(resolvedModulesPath) ? resolvedModulesPath : null,
+                    line => Report(38, "Preparing modules", line)))
+                {
+                    LogModel.Log("Could not prepare module project references; module loading has been stopped.");
+                    return false;
+                }
+            }
             var moduleCount = project.Modules.Count;
             var moduleIndex = 0;
             foreach (var module in project.Modules)
@@ -109,10 +121,20 @@ namespace TypeD.Models
                     if (resolved && !resolveCurrent && module.IsLocal && File.Exists(module.TypeOPath))
                     {
                         Report(moduleStart, "Preparing modules", $"Resolving dependencies of {module.Name}", 0);
-                        await TyperModel.Resolve(module.ModulePath, line => Report(moduleStart, "Preparing modules", $"{module.Name}: {line}"));
+                        var resolvedModulesPath = CachePath(project);
+                        if (!await TyperModel.Resolve(module.ModulePath, File.Exists(resolvedModulesPath) ? resolvedModulesPath : null,
+                            line => Report(moduleStart, "Preparing modules", $"{module.Name}: {line}")))
+                        {
+                            LogModel.Log($"Could not resolve dependencies of {module.Name}; module loading has been stopped.");
+                            return false;
+                        }
                     }
                     Report(moduleStart, "Building modules", $"Building {module.Name} ({step})", 100 * moduleIndex / Math.Max(moduleCount, 1));
-                    await Build(module);
+                    if (!await Build(module))
+                    {
+                        LogModel.Log($"Module {module.Name} failed to build; module loading has been stopped.");
+                        return false;
+                    }
                 }
                 moduleIndex++;
             }
@@ -121,7 +143,11 @@ namespace TypeD.Models
             // depends on; a module initialized earlier would bind a copy from its own bin folder instead
             foreach (var module in project.Modules.Where(m => m.Assembly == null))
             {
-                LoadAssemblyFiles(module);
+                if (!LoadAssemblyFiles(module))
+                {
+                    LogModel.Log($"Could not load the assembly of {module.Name}; module loading has been stopped.");
+                    return false;
+                }
             }
             // Modules initialize after the modules they depend on, so every module can use its dependencies while initializing
             var pending = InitializationOrder(project).Where(m => m.Assembly != null && !m.Initialized).ToList();
@@ -254,12 +280,26 @@ namespace TypeD.Models
 
             LogModel.Log($"Building module {module.Name}");
             var output = new List<string>();
-            if (await RunBuild(module, target, "quiet", line => { lock (output) output.Add(line); }) != 0)
+            if (await RunBuild(module, target, "minimal", line => { lock (output) output.Add(line); }) != 0)
             {
                 lock (output) LogModel.Log(string.Join(Environment.NewLine, output));
+                return false;
             }
 
-            return IsBuilt(module);
+            if (IsBuilt(module)) return true;
+
+            lock (output) LogModel.Log(string.Join(Environment.NewLine, output));
+            foreach (var path in new[] { module.ModuleDLLPath, module.ModuleDevDLLPath }.Where(path => !string.IsNullOrEmpty(path)))
+            {
+                if (!File.Exists(path))
+                    LogModel.Log($"Module {module.Name} build did not produce the expected assembly: '{path}'. Check that its solution includes its own projects.");
+                else
+                {
+                    foreach (var assembly in PackageRuntimeAssemblies(path).Where(assembly => !File.Exists(Path.Combine(Path.GetDirectoryName(path), assembly))))
+                        LogModel.Log($"Module {module.Name} build is missing runtime dependency '{assembly}' next to '{path}'.");
+                }
+            }
+            return false;
         }
 
         public async Task<bool> Rebuild(Module module, Action<string> output = null)
@@ -545,7 +585,7 @@ namespace TypeD.Models
             };
             // NuGet assemblies are copied next to the module dll, since ModuleLoadContext resolves from that
             // folder and the editor does not ship the packages the modules use
-            foreach (var arg in new[] { "build", target, "-c", "Debug", "--verbosity", verbosity, "-p:CopyLocalLockFileAssemblies=true" }) startInfo.ArgumentList.Add(arg);
+            foreach (var arg in new[] { "build", target, "-c", "Debug", "--verbosity", verbosity, "-p:CopyLocalLockFileAssemblies=true", "-p:TypeODependenciesResolved=true" }) startInfo.ArgumentList.Add(arg);
 
             using var process = new Process { StartInfo = startInfo };
             process.OutputDataReceived += (_, e) => { if (e.Data != null) output?.Invoke(e.Data); };

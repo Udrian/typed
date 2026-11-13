@@ -24,7 +24,7 @@ namespace TypeD.Models
         public void Init(IResourceModel resourceModel)
         {
             LogModel = resourceModel.Get<ILogModel>();
-            TyperScriptPath = FindTyper();
+            TyperScriptPath = FindTyper(AppContext.BaseDirectory, Environment.GetEnvironmentVariable("TYPER_PATH"));
         }
 
         // Functions
@@ -93,9 +93,17 @@ namespace TypeD.Models
             return (await Run("removeoverride", "-p", projectPath, "-n", name)).Success;
         }
 
-        public async Task<bool> Resolve(string projectPath, Action<string> onOutput = null)
+        public Task<bool> Resolve(string projectPath, Action<string> onOutput = null)
         {
-            return (await Run(onOutput, "dependency", "-p", projectPath)).Success;
+            return Resolve(projectPath, null, onOutput);
+        }
+
+        public async Task<bool> Resolve(string projectPath, string resolvedModulesPath, Action<string> onOutput)
+        {
+            var args = new List<string> { "dependency", "-p", projectPath };
+            if (resolvedModulesPath != null)
+                args.AddRange(new[] { "--resolvedModules", resolvedModulesPath });
+            return (await Run(onOutput, args.ToArray())).Success;
         }
 
         public async Task<bool> CreateModule(string name, string outputPath, IEnumerable<string> dependencies = null)
@@ -185,21 +193,21 @@ namespace TypeD.Models
             }
         }
 
-        private static string FindTyper()
+        private static string FindTyper(string applicationPath, string configuredPath)
         {
-            var fromEnvironment = Environment.GetEnvironmentVariable("TYPER_PATH");
-            if (!string.IsNullOrEmpty(fromEnvironment) && File.Exists(Path.Combine(fromEnvironment, "typer.py")))
+            if (!string.IsNullOrEmpty(configuredPath) && File.Exists(Path.Combine(configuredPath, "typer.py")))
             {
-                return Path.Combine(fromEnvironment, "typer.py");
+                return Path.Combine(configuredPath, "typer.py");
             }
 
-            // Walk up from the application folder to find a typer submodule, which is the layout of the TypeO repositories
-            for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+            // Prefer the top-level checkout over TypeR copies nested inside editor or module repositories.
+            string scriptPath = null;
+            for (var dir = new DirectoryInfo(applicationPath); dir != null; dir = dir.Parent)
             {
                 var candidate = Path.Combine(dir.FullName, "typer", "typer.py");
-                if (File.Exists(candidate)) return candidate;
+                if (File.Exists(candidate)) scriptPath = candidate;
             }
-            return null;
+            return scriptPath;
         }
     }
 }

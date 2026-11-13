@@ -27,6 +27,30 @@ already-loaded assembly copies cannot be merged in a running process.
 Run loader regression checks with
 `dotnet test TypeDTest/TypeDTest.csproj --filter FullyQualifiedName~ModuleLoadContextTests`.
 
+## Project builds
+
+For projects containing `typeo.json`, `ProjectModel.Build` runs TypeR dependency
+resolution before compiling changed modules or the game. When available, the
+project's `TypeO/cache/modules.json` is passed as `--resolvedModules` so module
+project references use the same selected dependency versions. Resolution failures
+stop the build and appear in its diagnostics; without a cache, normal manifest
+resolution is used. Plain C# projects without `typeo.json` still build directly.
+
+TypeR discovery prefers the top-level checkout over nested module/editor copies.
+Set `TYPER_PATH` to explicitly choose a different TypeR folder.
+
+When opening a project, source watching starts only after module preparation,
+restoration and code generation finish. This prevents generated project-file
+changes from launching a game build while the initial module build is running.
+A failed module build stops opening before any module assemblies are initialized,
+even if older output files are still present; the compiler output is logged.
+Successful compilation without the expected module assemblies is reported with
+the missing output paths and captured build output.
+Dependency references are prepared before compilation. Editor builds then pass
+`TypeODependenciesResolved=true` to skip TypeR's dependency pre-build hooks across
+the graph, preventing concurrent project-file rewrites by those hooks. Other
+pre-build tasks are unaffected.
+
 ## File format versions and module conversions
 
 Project (`.typeo`) and component (`.component`) JSON documents contain independent

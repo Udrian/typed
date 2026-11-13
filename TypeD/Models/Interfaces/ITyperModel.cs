@@ -47,6 +47,11 @@ namespace TypeD.Models.Interfaces
         /// <param name="projectPath">Folder containing typeo.json.</param>
         /// <param name="onOutput">Called with each line typer reports while resolving, for example git clone progress.</param>
         public Task<bool> Resolve(string projectPath, Action<string> onOutput = null);
+        /// <summary>Updates dependencies throughout the module graph using the project's resolved module versions.</summary>
+        /// <param name="projectPath">Folder containing typeo.json.</param>
+        /// <param name="resolvedModulesPath">Project TypeO/cache/modules.json, or <c>null</c> for normal dependency resolution.</param>
+        /// <param name="onOutput">Called with each line typer reports while resolving.</param>
+        public Task<bool> Resolve(string projectPath, string resolvedModulesPath, Action<string> onOutput);
         /// <summary>Creates a new module project.</summary>
         /// <param name="name">Name of the module.</param>
         /// <param name="outputPath">Folder to create the module folder in.</param>

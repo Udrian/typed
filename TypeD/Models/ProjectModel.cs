@@ -22,6 +22,7 @@ namespace TypeD.Models
         ISaveModel SaveModel { get; set; }
         IResourceModel ResourceModel { get; set; }
         ILogModel LogModel { get; set; }
+        ITyperModel TyperModel { get; set; }
         private readonly ConcurrentDictionary<Project, ProjectWatch> ProjectWatchers = new();
         private readonly ConditionalWeakTable<Project, SemaphoreSlim> BuildLocks = new();
         private static readonly Regex BuildDiagnosticRegex = new(
@@ -51,6 +52,7 @@ namespace TypeD.Models
             SaveModel = ResourceModel.Get<ISaveModel>();
             ComponentProvider = ResourceModel.Get<IComponentProvider>();
             LogModel = ResourceModel.Get<ILogModel>();
+            TyperModel = ResourceModel.Get<ITyperModel>();
         }
 
         // Functions
@@ -66,7 +68,8 @@ namespace TypeD.Models
 
             var modules = (changedModules ?? Enumerable.Empty<Module>()).Where(project.Modules.Contains).Distinct().ToList();
             var reloadModules = modules.Any(ModuleModel.CanReload);
-            var run = new ProjectBuildRun(HookModel, project, modules.Count + 1 + (reloadModules ? 1 : 0));
+            var resolveDependencies = File.Exists(Path.Combine(project.Location, "typeo.json"));
+            var run = new ProjectBuildRun(HookModel, project, modules.Count + 1 + (reloadModules ? 1 : 0) + (resolveDependencies ? 1 : 0));
             try
             {
                 if (!File.Exists(project.ProjectCSProjPath))
@@ -74,6 +77,24 @@ namespace TypeD.Models
                     run.AddIssue(GameIssue(project, "error", $"Project file not found: '{project.ProjectCSProjPath}'."));
                     run.Complete(false, "Build failed");
                     return false;
+                }
+
+                if (resolveDependencies)
+                {
+                    run.BeginStep("Resolving dependencies", "Updating module project references");
+                    var resolvedModulesPath = Path.Combine(project.ProjectTypeOPath, "cache", "modules.json");
+                    if (!await TyperModel.Resolve(project.Location, File.Exists(resolvedModulesPath) ? resolvedModulesPath : null,
+                        line =>
+                        {
+                            run.UpdateSubTask(line);
+                            HandleBuildOutput(project, line, run, null);
+                        }))
+                    {
+                        if (run.ErrorCount == 0)
+                            run.AddIssue(GameIssue(project, "error", "Could not resolve project module dependencies."));
+                        run.Complete(false, "Dependency resolution failed");
+                        return false;
+                    }
                 }
 
                 for (var i = 0; i < modules.Count; i++)
@@ -187,6 +208,7 @@ namespace TypeD.Models
             startInfo.ArgumentList.Add(project.ProjectBuildOutputPath);
             startInfo.ArgumentList.Add("--verbosity");
             startInfo.ArgumentList.Add("minimal");
+            startInfo.ArgumentList.Add("-p:TypeODependenciesResolved=true");
 
             using var process = new Process { StartInfo = startInfo };
             process.OutputDataReceived += (_, e) => HandleBuildOutput(project, e.Data, run, null);
