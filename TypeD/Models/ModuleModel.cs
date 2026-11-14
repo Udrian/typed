@@ -249,6 +249,14 @@ namespace TypeD.Models
 
         public async Task<bool> UpdateLocal(Project project, string name)
         {
+            if (project.IsConfigurationOnly)
+            {
+                var dependency = (await TyperModel.ListDependencies(project.Location))
+                    .FirstOrDefault(d => d.Name == name && !d.Nuget && d.IsLocal);
+                if (dependency == null) return false;
+                return await TyperModel.UpdateDependency(Path.GetFullPath(dependency.LocalPath, project.Location));
+            }
+
             var module = project.Modules.Find(m => m.Name == name && m.IsLocal);
             if (module == null) return false;
 
@@ -604,6 +612,7 @@ namespace TypeD.Models
         private async Task<bool> Apply(Project project, bool changed)
         {
             if (!changed) return false;
+            if (project.IsConfigurationOnly) return true;
 
             var resolved = await Resolve(project, true);
             SaveModel.AddSave<ProjectSaveContext>(project);

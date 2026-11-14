@@ -159,6 +159,17 @@ namespace TypeD.Models.Providers
             return project;
         }
 
+        public Project ReadConfiguration(string projectFilePath)
+        {
+            var path = Path.GetFullPath(projectFilePath);
+            if (!path.EndsWith(".typeo", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Select a TypeO project file.", nameof(projectFilePath));
+
+            var formats = ResourceModel.Get<IFormatVersionModel>();
+            var projectData = formats.Read<ProjectDTO>(path, FormatDocumentKind.Project, coreOnly: true);
+            return new Project(Path.GetDirectoryName(path), projectData) { IsConfigurationOnly = true };
+        }
+
         public async Task<Project> Load(string projectFilePath, Action<int> progress, bool regenerateComponentCode = true, Action<ProgressUpdate> report = null)
         {
             if (!projectFilePath.EndsWith(".typeo")) return null;

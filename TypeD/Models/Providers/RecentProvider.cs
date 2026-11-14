@@ -27,7 +27,7 @@ namespace TypeD.Models.Providers
             for(int i = Recents.Count - 1; i >= 0; i--)
             {
                 var recent = Recents[i];
-                if(recent.Path == projectFilePath || !File.Exists(recent.Path))
+                if(PathsEqual(recent.Path, projectFilePath) || !File.Exists(recent.Path))
                 {
                     Recents.RemoveAt(i);
                 }
@@ -43,6 +43,63 @@ namespace TypeD.Models.Providers
             }
 
             Save();
+        }
+
+        public void Rename(string oldProjectFilePath, string newProjectFilePath, string projectName)
+        {
+            var matches = Recents.Where(recent => PathsEqual(recent.Path, oldProjectFilePath)).ToList();
+            if (matches.Count == 0) return;
+
+            var original = Recents.ToList();
+            var dateTime = matches.Max(recent => recent.DateTime);
+            try
+            {
+                for (var i = Recents.Count - 1; i >= 0; i--)
+                    if (PathsEqual(Recents[i].Path, oldProjectFilePath) ||
+                        PathsEqual(Recents[i].Path, newProjectFilePath))
+                        Recents.RemoveAt(i);
+                var recent = new Recent
+                {
+                    Name = projectName,
+                    Path = newProjectFilePath,
+                    DateTime = dateTime
+                };
+                var index = Recents.TakeWhile(entry => entry.DateTime >= dateTime).Count();
+                Recents.Insert(index, recent);
+                Trim();
+                Save();
+            }
+            catch
+            {
+                Recents.Clear();
+                foreach (var recent in original)
+                    Recents.Add(recent);
+                throw;
+            }
+        }
+
+        public void Remove(string projectFilePath)
+        {
+            var original = Recents.ToList();
+            var changed = false;
+            for (var i = Recents.Count - 1; i >= 0; i--)
+            {
+                if (!PathsEqual(Recents[i].Path, projectFilePath)) continue;
+                Recents.RemoveAt(i);
+                changed = true;
+            }
+            if (!changed) return;
+            try
+            {
+                Save();
+            }
+            catch
+            {
+                Recents.Clear();
+                foreach (var recent in original)
+                    Recents.Add(recent);
+                throw;
+            }
         }
 
         public IEnumerable<Recent> Get()
@@ -66,6 +123,27 @@ namespace TypeD.Models.Providers
         private void Save()
         {
             JSON.Serialize(Recents, RecentFilePath);
+        }
+
+        private void Trim()
+        {
+            while (Recents.Count > RecentLength)
+                Recents.RemoveAt(Recents.Count - 1);
+        }
+
+        private static bool PathsEqual(string left, string right)
+        {
+            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+                return false;
+            var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            try
+            {
+                return comparer.Equals(Path.GetFullPath(left), Path.GetFullPath(right));
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return comparer.Equals(left, right);
+            }
         }
     }
 }

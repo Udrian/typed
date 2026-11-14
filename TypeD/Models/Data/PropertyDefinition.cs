@@ -25,6 +25,11 @@ namespace TypeD.Models.Data
         Type ValueType { get; }
 
         /// <summary>
+        /// The template type used by default for properties using this definition. Defaults to <see cref="ValueType"/>.
+        /// </summary>
+        Type PropertyTemplateType { get; }
+
+        /// <summary>
         /// Converter used when saving and loading values of <see cref="Type"/> as JSON, or <see langword="null"/> to
         /// use the default System.Text.Json handling.
         /// </summary>
@@ -59,6 +64,9 @@ namespace TypeD.Models.Data
 
         /// <inheritdoc/>
         public Type ValueType => typeof(TValue);
+
+        /// <inheritdoc/>
+        public virtual Type PropertyTemplateType => ValueType;
 
         /// <inheritdoc/>
         public virtual JsonConverter JsonConverter => null;

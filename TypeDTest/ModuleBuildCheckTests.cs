@@ -170,6 +170,128 @@ public class ModuleBuildCheckTests
         }
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ConfigurationOnlyModuleChangesDoNotResolveBuildOrInitializeTheProject(bool changed)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"TypeD-module-configuration-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var projectPath = Path.Combine(directory, "Example.typeo");
+        const string projectJson = """
+            {"ProjectName":"Example","CSProjName":"Example","CSSolutionPath":"Example.sln","FormatVersions":{"TypeD":1}}
+            """;
+        File.WriteAllText(projectPath, projectJson);
+        var calls = new List<string>();
+        var typer = DispatchProxy.Create<ITyperModel, TestModelProxy>();
+        ((TestModelProxy)typer).Handler = (method, args) =>
+        {
+            calls.Add(method.Name);
+            if (method.Name == nameof(ITyperModel.GetModuleTypeO))
+                return Task.FromResult<ModuleTypeO>(null);
+            if (method.Name == nameof(ITyperModel.CreateModule))
+            {
+                Assert.Equal("Mod", args[0]);
+                Assert.Equal(directory, args[1]);
+                return Task.FromResult(changed);
+            }
+            Assert.Equal(directory, args[0]);
+            switch (method.Name)
+            {
+                case nameof(ITyperModel.ListDependencies):
+                    return Task.FromResult<IEnumerable<ModuleDependency>>(new[]
+                    {
+                        new ModuleDependency { Name = "Mod", Author = "Test", Version = "1.0.0" }
+                    });
+                case nameof(ITyperModel.AddDependency):
+                case nameof(ITyperModel.UpdateDependency):
+                case nameof(ITyperModel.RemoveDependency):
+                case nameof(ITyperModel.AddOverride):
+                case nameof(ITyperModel.RemoveOverride):
+                    return Task.FromResult(changed);
+                default:
+                    throw new InvalidOperationException($"Unexpected project activation: {method.Name}");
+            }
+        };
+        var resources = InitializeResources(typer);
+        var provider = resources.Get<IProjectProvider>();
+        provider.Init(resources);
+        var previousDirectory = Environment.CurrentDirectory;
+        try
+        {
+            var project = provider.ReadConfiguration(projectPath);
+            var modules = resources.Get<IModuleModel>();
+            Assert.Equal(changed, await modules.Add(project, "Test", "Mod", "1.0.0"));
+            Assert.Equal(changed, await modules.Update(project, "Mod", "2.0.0"));
+            Assert.Equal(changed, await modules.UseLocal(project, "Mod", Path.Combine(directory, "local")));
+            Assert.Equal(changed, await modules.UseReleased(project, "Mod"));
+            Assert.Equal(changed, await modules.Remove(project, "Mod"));
+            Assert.Equal(changed, await modules.AddLocal(project, "Mod", "1.0.0", Path.Combine(directory, "local")));
+            Assert.Equal(changed, await modules.CreateLocal(project, "Mod", directory));
+
+            Assert.Contains(nameof(ITyperModel.AddDependency), calls);
+            Assert.Contains(nameof(ITyperModel.UpdateDependency), calls);
+            Assert.Contains(nameof(ITyperModel.RemoveDependency), calls);
+            Assert.Contains(nameof(ITyperModel.AddOverride), calls);
+            Assert.Contains(nameof(ITyperModel.RemoveOverride), calls);
+            Assert.Contains(nameof(ITyperModel.CreateModule), calls);
+            Assert.DoesNotContain(nameof(ITyperModel.Resolve), calls);
+            Assert.Empty(project.Modules);
+            Assert.Null(project.Assembly);
+            Assert.Equal(previousDirectory, Environment.CurrentDirectory);
+            Assert.False(Directory.Exists(project.ProjectTypeOPath));
+            Assert.Equal(projectJson, File.ReadAllText(projectPath));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ConfigurationOnlyLocalDependencyUpdateUsesTheProjectRelativeOverride(bool changed)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"TypeD-local-configuration-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var projectPath = Path.Combine(directory, "Example.typeo");
+        File.WriteAllText(projectPath, """{"ProjectName":"Example"}""");
+        var calls = new List<string>();
+        var typer = DispatchProxy.Create<ITyperModel, TestModelProxy>();
+        ((TestModelProxy)typer).Handler = (method, args) =>
+        {
+            calls.Add(method.Name);
+            if (method.Name == nameof(ITyperModel.ListDependencies))
+            {
+                Assert.Equal(directory, args[0]);
+                return Task.FromResult<IEnumerable<ModuleDependency>>(new[]
+                {
+                    new ModuleDependency { Name = "Mod", LocalPath = "local" }
+                });
+            }
+            Assert.Equal(nameof(ITyperModel.UpdateDependency), method.Name);
+            Assert.Equal(Path.Combine(directory, "local"), args[0]);
+            return Task.FromResult(changed);
+        };
+        var resources = InitializeResources(typer);
+        var provider = resources.Get<IProjectProvider>();
+        provider.Init(resources);
+        try
+        {
+            var project = provider.ReadConfiguration(projectPath);
+
+            Assert.Equal(changed, await resources.Get<IModuleModel>().UpdateLocal(project, "Mod"));
+            Assert.Equal(new[] { nameof(ITyperModel.ListDependencies), nameof(ITyperModel.UpdateDependency) }, calls);
+            Assert.Empty(project.Modules);
+            Assert.False(Directory.Exists(project.ProjectTypeOPath));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public void IsBuiltRequiresThePackageAssembliesNextToTheModuleAssembly()
     {

@@ -234,6 +234,29 @@ public class LibraryModelApiTests
     }
 
     [Fact]
+    public void PropertyModel_RegisterTemplatesByTemplateType()
+    {
+        var propertyModel = InitializeResources().Get<IPropertyModel>();
+        var template = new TestPropertyTemplate();
+
+        propertyModel.RegisterTemplate(template);
+
+        Assert.Same(template, propertyModel.GetTemplate(typeof(TestPropertyTemplate)));
+        propertyModel.UnregisterTemplate(typeof(TestPropertyTemplate));
+        Assert.Null(propertyModel.GetTemplate(typeof(TestPropertyTemplate)));
+    }
+
+    [Fact]
+    public void SettingModel_UsesLocalSettingsPathForGlobalUserContexts()
+    {
+        var settings = InitializeResources().Get<ISettingModel>();
+
+        Assert.Equal(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TypeO", "Settings"),
+            settings.GetPath(null, SettingLevel.User));
+    }
+
+    [Fact]
     public void PropertyModel_RegistrationActivatesAndRemovesJsonConverter()
     {
         var propertyModel = InitializeResources().Get<IPropertyModel>();
@@ -509,6 +532,7 @@ public class LibraryModelApiTests
     {
         public Type Type { get; }
         public Type ValueType => Type;
+        public Type PropertyTemplateType => ValueType;
         public JsonConverter JsonConverter { get; }
 
         public TestPropertyDefinition(Type type, JsonConverter jsonConverter = null)
@@ -520,6 +544,12 @@ public class LibraryModelApiTests
         public string ToCode(object value) => value?.ToString();
         public PropertyNode CreateNode(Component component, Property property, Action<PropertyNode, object> valueChanged) => null;
         public IDataTemplate CreateTemplate() => null;
+    }
+
+    private sealed class TestPropertyTemplate : PropertyTemplate
+    {
+        protected override string TemplateUri => string.Empty;
+        protected override string TemplateKey => string.Empty;
     }
 
     private sealed record ConvertedValue(string Value);

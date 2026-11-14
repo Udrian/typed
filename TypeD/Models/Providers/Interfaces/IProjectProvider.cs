@@ -18,6 +18,14 @@ namespace TypeD.Models.Providers.Interfaces
         /// <param name="report">Callback reporting what is being done, including subtasks.</param>
         /// <returns>The created project.</returns>
         public Task<Project> Create(string projectName, string location, string csSolutionPath, string csProjName, ObservableCollection<(string Author, string Name, string Version, string LocalPath)> modulesToAdd = null, Action<int> progress = null, Action<ProgressUpdate> report = null);
+        /// <summary>
+        /// Reads project configuration without initializing the project or loading modules.
+        /// Module-model changes on this instance only update dependency configuration; resolving,
+        /// building, and loading are deferred until the project is opened.
+        /// </summary>
+        /// <param name="projectFilePath">The project file path.</param>
+        /// <returns>The configuration-only project.</returns>
+        public Project ReadConfiguration(string projectFilePath);
         /// <summary>Loads a project from its file.</summary>
         /// <param name="projectFilePath">The project file path.</param>
         /// <param name="progress">Callback reporting progress.</param>

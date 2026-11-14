@@ -49,6 +49,7 @@ namespace TypeD.Models.Data
         public Tree ComponentTree { get; set; }
 
         // Loaded data
+        internal bool IsConfigurationOnly { get; init; }
         /// <summary>Gets the compiled project assembly, once loaded.</summary>
         public Assembly Assembly { get; internal set; }
         /// <summary>Gets or sets a value indicating whether the project is being closed.</summary>

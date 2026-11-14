@@ -1,4 +1,4 @@
-using System;
+using System.Text.Json.Serialization;
 
 namespace TypeD.Models.Data
 {
@@ -20,6 +20,7 @@ namespace TypeD.Models.Data
             DeclaringTypeName = property.DeclaringTypeName;
             Value = property.Value;
             Type = property.Type;
+            PropertyTemplateType = property.PropertyTemplateType;
             FromComponent = property.FromComponent;
             ReadOnly = property.ReadOnly;
         }
@@ -56,6 +57,9 @@ namespace TypeD.Models.Data
         /// Gets or sets the type of the property value.
         /// </summary>
         public Type Type { get; set; }
+        /// <summary>Gets or sets the editor template type; null uses the registered property definition's value type.</summary>
+        [JsonIgnore]
+        public Type PropertyTemplateType { get; set; }
         /// <summary>
         /// Gets or sets whether the object is read only and can not have it's value changed.
         /// </summary>

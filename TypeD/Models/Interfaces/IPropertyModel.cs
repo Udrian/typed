@@ -13,6 +13,15 @@ namespace TypeD.Models.Interfaces
         /// </summary>
         public void Register(IPropertyDefinition definition);
 
+        /// <summary>Registers a reusable editor template, replacing any existing template with the same type.</summary>
+        public void RegisterTemplate(PropertyTemplate template);
+
+        /// <summary>Removes the reusable editor template registered for the type.</summary>
+        public void UnregisterTemplate(Type type);
+
+        /// <summary>Gets a reusable editor template registered for the type.</summary>
+        public PropertyTemplate GetTemplate(Type type);
+
         /// <summary>
         /// Removes the definition for the type and deactivates its JSON converter.
         /// </summary>

@@ -137,7 +137,7 @@ namespace TypeD.Models
         }
 
         // Properties
-        private string SettingsPath { get { return "TypeO/Settings"; } }
+        private string SettingsPath { get { return Path.Combine("TypeO", "Settings"); } }
 
         // Constructors
         public SettingModel()
@@ -178,11 +178,16 @@ namespace TypeD.Models
         public void InitContext<T>(Project project) where T : SettingContext, new()
         {
             RemoveContext<T>();
-            var paths = new List<string>() { GetPath(project, SettingLevel.System), project == null ? null : GetPath(project, SettingLevel.Project), project == null ? null : GetPath(project, SettingLevel.User) };
+            var paths = new List<string>()
+            {
+                GetPath(project, SettingLevel.System),
+                project == null ? null : GetPath(project, SettingLevel.Project),
+                GetPath(project, SettingLevel.User)
+            };
             var i = 0;
             foreach(var path in paths)
             {
-                var filePath = $"{path}/{GetName<T>()}.json";
+                var filePath = path == null ? null : Path.Combine(path, $"{GetName<T>()}.json");
                 T context = null;
                 if (path != null && File.Exists(filePath))
                 {
@@ -325,11 +330,14 @@ namespace TypeD.Models
         public string GetPath(Project project, SettingLevel settingLevel)
         {
             if(settingLevel == SettingLevel.System)
-                return $"{Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)}/{SettingsPath}";
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), SettingsPath);
             if(settingLevel == SettingLevel.Project)
-                return $"{project.Location}/{SettingsPath}";
+                return project == null ? null : Path.Combine(project.Location, SettingsPath);
             if (settingLevel == SettingLevel.User)
-                return $"{Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)}/{SettingsPath}/{project.ProjectName}";
+            {
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), SettingsPath);
+                return project == null ? path : Path.Combine(path, project.ProjectName);
+            }
             return "";
         }
     }

@@ -31,6 +31,10 @@ namespace TypeD.Models.Data
     /// <summary>Untyped access to a setting value.</summary>
     public interface ISetting
     {
+        /// <summary>Gets or sets an explicit editor template type, or null to use the setting value type.</summary>
+        [JsonIgnore]
+        Type PropertyTemplateType { get; set; }
+
         /// <summary>Sets the value.</summary>
         /// <param name="value">The new value, which must match the setting's value type.</param>
         public void SetValue(object value);
@@ -63,6 +67,9 @@ namespace TypeD.Models.Data
         /// <summary>Gets the default value.</summary>
         [JsonIgnore]
         public T DefaultValue { get; internal set; }
+        /// <summary>Gets or sets an explicit editor template type; null uses the setting's value type.</summary>
+        [JsonIgnore]
+        public Type PropertyTemplateType { get; set; }
         /// <summary>Gets or sets the current value.</summary>
         public T Value { get; set; }
 
