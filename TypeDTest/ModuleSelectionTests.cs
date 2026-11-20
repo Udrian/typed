@@ -93,12 +93,12 @@ public class ModuleSelectionTests
     [Fact]
     public void WarningWhenModuleRequiresALowerVersionThanSelected()
     {
-        var typeO = TypeO("Udrian@Core-0.1.0");
+        var typeO = TypeO("Udrian@Core-1.0.0");
         var required = ModuleSelection.RequiredVersions(new[] { ("A", typeO) });
 
-        var warning = ModuleSelection.Warning("A", "0.2.0", typeO, required, name => name == "Core" ? "0.3.0" : null);
+        var warning = ModuleSelection.Warning("A", "2.0.0", typeO, required, name => name == "Core" ? "3.0.0" : null);
 
         Assert.Contains("A may need an update", warning);
-        Assert.Null(ModuleSelection.Warning("A", "0.2.0", typeO, required, name => name == "Core" ? "0.1.0" : null));
+        Assert.Null(ModuleSelection.Warning("A", "2.0.0", typeO, required, name => name == "Core" ? "1.0.0" : null));
     }
 }
