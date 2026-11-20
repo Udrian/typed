@@ -116,7 +116,7 @@ namespace TypeD.Models.Data
             foreach (var dependency in ModuleDependencies(typeO))
             {
                 var selected = selectedVersion(dependency.Name);
-                if (selected != null && CompareVersions(dependency.Version, selected) < 0)
+                if (selected != null && CompareVersions(dependency.Version.Split(".")[0], selected.Split(".")[0]) < 0)
                 {
                     return $"{name} was made for {dependency.Name} {dependency.Version} but {selected} is selected, so {name} may need an update";
                 }
