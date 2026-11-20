@@ -166,34 +166,50 @@ namespace TypeD.Models
             return resolved;
         }
 
-        public async Task<bool> Add(Project project, string author, string name, string version)
+        public async Task<bool> Add(Project project, string author, string name, string version, Action<ProgressUpdate> report = null)
         {
             if (string.IsNullOrEmpty(author) || string.IsNullOrEmpty(version)) return false;
+            report?.Invoke(new ProgressUpdate(0, $"Adding {name} {version}"));
             await Initialize(project);
-            var changed = await TyperModel.AddDependency(project.Location, $"{author}@{name}-{version}");
-            if (changed) await AlignDependencyVersions(project, name);
-            return await Apply(project, changed);
+            var changed = await TyperModel.AddDependency(project.Location, $"{author}@{name}-{version}",
+                line => report?.Invoke(new ProgressUpdate(2, $"Adding {name} {version}", line)));
+            if (changed)
+            {
+                report?.Invoke(new ProgressUpdate(5, $"Adding {name} {version}", "Aligning dependency versions"));
+                await AlignDependencyVersions(project, name);
+            }
+            return await Apply(project, changed, report);
         }
 
-        public async Task<bool> Remove(Project project, string name)
+        public async Task<bool> Remove(Project project, string name, Action<ProgressUpdate> report = null)
         {
+            report?.Invoke(new ProgressUpdate(0, $"Removing {name}"));
             await Initialize(project);
             var dependency = (await TyperModel.ListDependencies(project.Location)).FirstOrDefault(d => d.Name == name && !d.Nuget);
             if (dependency == null) return false;
 
             if (dependency.Overridden)
             {
-                await TyperModel.RemoveOverride(project.Location, name);
+                await TyperModel.RemoveOverride(project.Location, name,
+                    line => report?.Invoke(new ProgressUpdate(2, $"Removing {name}", line)));
             }
-            return await Apply(project, await TyperModel.RemoveDependency(project.Location, name));
+            return await Apply(project, await TyperModel.RemoveDependency(project.Location, name,
+                line => report?.Invoke(new ProgressUpdate(5, $"Removing {name}", line))), report);
         }
 
-        public async Task<bool> Update(Project project, string name = null, string version = null)
+        public async Task<bool> Update(Project project, string name = null, string version = null, Action<ProgressUpdate> report = null)
         {
+            var message = $"Updating {name ?? "all modules"}";
+            report?.Invoke(new ProgressUpdate(0, message));
             await Initialize(project);
-            var changed = await TyperModel.UpdateDependency(project.Location, name, version);
-            if (changed) await AlignDependencyVersions(project, name);
-            return await Apply(project, changed);
+            var changed = await TyperModel.UpdateDependency(project.Location, name, version,
+                line => report?.Invoke(new ProgressUpdate(2, message, line)));
+            if (changed)
+            {
+                report?.Invoke(new ProgressUpdate(5, message, "Aligning dependency versions"));
+                await AlignDependencyVersions(project, name);
+            }
+            return await Apply(project, changed, report);
         }
 
         // Updates the project's direct dependencies to at least the versions the added or updated modules require,
@@ -235,48 +251,59 @@ namespace TypeD.Models
             }
         }
 
-        public async Task<bool> UseLocal(Project project, string name, string path)
+        public async Task<bool> UseLocal(Project project, string name, string path, Action<ProgressUpdate> report = null)
         {
+            report?.Invoke(new ProgressUpdate(0, $"Using local {name}"));
             await Initialize(project);
-            return await Apply(project, await TyperModel.AddOverride(project.Location, name, path));
+            return await Apply(project, await TyperModel.AddOverride(project.Location, name, path,
+                line => report?.Invoke(new ProgressUpdate(2, $"Using local {name}", line))), report);
         }
 
-        public async Task<bool> UseReleased(Project project, string name)
+        public async Task<bool> UseReleased(Project project, string name, Action<ProgressUpdate> report = null)
         {
+            report?.Invoke(new ProgressUpdate(0, $"Using released {name}"));
             await Initialize(project);
-            return await Apply(project, await TyperModel.RemoveOverride(project.Location, name));
+            return await Apply(project, await TyperModel.RemoveOverride(project.Location, name,
+                line => report?.Invoke(new ProgressUpdate(2, $"Using released {name}", line))), report);
         }
 
-        public async Task<bool> UpdateLocal(Project project, string name)
+        public async Task<bool> UpdateLocal(Project project, string name, Action<ProgressUpdate> report = null)
         {
+            report?.Invoke(new ProgressUpdate(0, $"Updating dependencies of {name}"));
+            void Output(string line) => report?.Invoke(new ProgressUpdate(2, $"Updating dependencies of {name}", line));
             if (project.IsConfigurationOnly)
             {
                 var dependency = (await TyperModel.ListDependencies(project.Location))
                     .FirstOrDefault(d => d.Name == name && !d.Nuget && d.IsLocal);
                 if (dependency == null) return false;
-                return await TyperModel.UpdateDependency(Path.GetFullPath(dependency.LocalPath, project.Location));
+                return await TyperModel.UpdateDependency(Path.GetFullPath(dependency.LocalPath, project.Location), onOutput: Output);
             }
 
             var module = project.Modules.Find(m => m.Name == name && m.IsLocal);
             if (module == null) return false;
 
-            return await Apply(project, await TyperModel.UpdateDependency(module.ModulePath));
+            return await Apply(project, await TyperModel.UpdateDependency(module.ModulePath, onOutput: Output), report);
         }
 
-        public async Task<bool> AddLocal(Project project, string name, string version, string path)
+        public async Task<bool> AddLocal(Project project, string name, string version, string path, Action<ProgressUpdate> report = null)
         {
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(path)) return false;
+            report?.Invoke(new ProgressUpdate(0, $"Adding local {name}"));
             await Initialize(project);
-            if (!await TyperModel.AddDependency(project.Location, $"Local@{name}-{(string.IsNullOrEmpty(version) ? "0.1.0" : version)}")) return false;
-            return await Apply(project, await TyperModel.AddOverride(project.Location, name, path));
+            if (!await TyperModel.AddDependency(project.Location, $"local@{name}-{(string.IsNullOrEmpty(version) ? "0.0.0" : version)}",
+                line => report?.Invoke(new ProgressUpdate(2, $"Adding local {name}", line)))) return false;
+            return await Apply(project, await TyperModel.AddOverride(project.Location, name, path,
+                line => report?.Invoke(new ProgressUpdate(5, $"Adding local {name}", line))), report);
         }
 
-        public async Task<bool> CreateLocal(Project project, string name, string outputPath)
+        public async Task<bool> CreateLocal(Project project, string name, string outputPath, Action<ProgressUpdate> report = null)
         {
-            if (!await TyperModel.CreateModule(name, outputPath)) return false;
+            report?.Invoke(new ProgressUpdate(0, $"Creating module {name}"));
+            if (!await TyperModel.CreateModule(name, outputPath,
+                onOutput: line => report?.Invoke(new ProgressUpdate(2, $"Creating module {name}", line)))) return false;
 
             // The new module has no release yet, so it is added as a dependency that is overridden by the local folder
-            return await AddLocal(project, name, "0.1.0", Path.Combine(outputPath, name.ToLower()));
+            return await AddLocal(project, name, "0.0.0", Path.Combine(outputPath, name.ToLower()), report);
         }
 
         public async Task<bool> Build(Module module)
@@ -609,12 +636,14 @@ namespace TypeD.Models
         }
 
         // Internal functions
-        private async Task<bool> Apply(Project project, bool changed)
+        private async Task<bool> Apply(Project project, bool changed, Action<ProgressUpdate> report = null)
         {
             if (!changed) return false;
             if (project.IsConfigurationOnly) return true;
 
-            var resolved = await Resolve(project, true);
+            // The typer change itself is the first tenth, the resolve with its fetches and builds the rest
+            var resolved = await Resolve(project, true, report == null ? null
+                : update => report(update with { Progress = 10 + update.Progress * 90 / 100 }));
             SaveModel.AddSave<ProjectSaveContext>(project);
             var projectModel = ResourceModel.Get<IProjectModel>();
             projectModel.RefreshWatching(project);
@@ -635,7 +664,15 @@ namespace TypeD.Models
                     // Dev-tagged module dependencies are included, since the dev assemblies run inside the
                     // editor and their dependencies must resolve to loaded modules rather than bin folder copies
                     if (dependency.Nuget || dependency.Tags.Any(tag => tag != "dev") || dependency.Name == "TypeD") continue;
-                    if (!visited.Add(dependency.Name)) continue;
+                    if (!visited.Add(dependency.Name))
+                    {
+                        var foundModule = modules.First(m => m.Name == dependency.Name);
+                        if (ModuleSelection.CompareVersions(dependency.Version, foundModule.Version) <= 0 || foundModule.IsLocal)
+                        {
+                            continue;
+                        }
+                        modules.Remove(foundModule);
+                    }
 
                     // Overrides declared by a module are relative to that module, so make the path absolute
                     var version = dependency.IsLocal ? $"{Path.GetFullPath(dependency.LocalPath, path)};local" : dependency.Version;

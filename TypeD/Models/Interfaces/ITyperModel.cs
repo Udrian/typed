@@ -24,25 +24,30 @@ namespace TypeD.Models.Interfaces
         /// <summary>Adds or replaces a dependency in typeo.json.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         /// <param name="dependency">Dependency string, for example <c>Udrian@TypeOCore-0.1.0</c>.</param>
-        public Task<bool> AddDependency(string projectPath, string dependency);
+        /// <param name="onOutput">Called with each line typer reports while running.</param>
+        public Task<bool> AddDependency(string projectPath, string dependency, Action<string> onOutput = null);
         /// <summary>Removes a dependency from typeo.json.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         /// <param name="name">Name of the dependency.</param>
-        public Task<bool> RemoveDependency(string projectPath, string name);
+        /// <param name="onOutput">Called with each line typer reports while running.</param>
+        public Task<bool> RemoveDependency(string projectPath, string name, Action<string> onOutput = null);
         /// <summary>Updates one or all dependencies to the latest or a given version.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         /// <param name="name">Name of the dependency, or <c>null</c> for all.</param>
         /// <param name="version">Version to update to, or <c>null</c> for the latest release.</param>
-        public Task<bool> UpdateDependency(string projectPath, string name = null, string version = null);
+        /// <param name="onOutput">Called with each line typer reports while running.</param>
+        public Task<bool> UpdateDependency(string projectPath, string name = null, string version = null, Action<string> onOutput = null);
         /// <summary>Overrides a dependency with a local module in typeo_override.json.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         /// <param name="name">Name of the dependency.</param>
         /// <param name="localPath">Folder of the local module.</param>
-        public Task<bool> AddOverride(string projectPath, string name, string localPath);
+        /// <param name="onOutput">Called with each line typer reports while running.</param>
+        public Task<bool> AddOverride(string projectPath, string name, string localPath, Action<string> onOutput = null);
         /// <summary>Removes a dependency override.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         /// <param name="name">Name of the dependency.</param>
-        public Task<bool> RemoveOverride(string projectPath, string name);
+        /// <param name="onOutput">Called with each line typer reports while running.</param>
+        public Task<bool> RemoveOverride(string projectPath, string name, Action<string> onOutput = null);
         /// <summary>Fetches missing dependencies and updates the solution and project files.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         /// <param name="onOutput">Called with each line typer reports while resolving, for example git clone progress.</param>
@@ -55,7 +60,7 @@ namespace TypeD.Models.Interfaces
         /// <summary>Creates a new module project.</summary>
         /// <param name="name">Name of the module.</param>
         /// <param name="outputPath">Folder to create the module folder in.</param>
-        /// <param name="dependencies">Dependency strings of the new module, defaults to TypeOCore.</param>
-        public Task<bool> CreateModule(string name, string outputPath, IEnumerable<string> dependencies = null);
+        /// <param name="onOutput">Called with each line typer reports while running.</param>
+        public Task<bool> CreateModule(string name, string outputPath, Action<string> onOutput = null);
     }
 }

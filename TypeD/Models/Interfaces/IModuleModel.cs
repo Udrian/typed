@@ -20,40 +20,48 @@ namespace TypeD.Models.Interfaces
         /// <param name="author">The author (GitHub owner) of the module.</param>
         /// <param name="name">The module name.</param>
         /// <param name="version">The module version.</param>
-        public Task<bool> Add(Project project, string author, string name, string version);
+        /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
+        public Task<bool> Add(Project project, string author, string name, string version, Action<ProgressUpdate> report = null);
         /// <summary>Removes a module from the project.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The module name.</param>
-        public Task<bool> Remove(Project project, string name);
+        /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
+        public Task<bool> Remove(Project project, string name, Action<ProgressUpdate> report = null);
         /// <summary>Updates a module, or all modules, to the latest or a given version.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The module name, or <c>null</c> for all modules.</param>
         /// <param name="version">The version, or <c>null</c> for the latest release.</param>
-        public Task<bool> Update(Project project, string name = null, string version = null);
+        /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
+        public Task<bool> Update(Project project, string name = null, string version = null, Action<ProgressUpdate> report = null);
         /// <summary>Uses a local module instead of the released one, for local module development.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The module name.</param>
         /// <param name="path">The folder of the local module.</param>
-        public Task<bool> UseLocal(Project project, string name, string path);
+        /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
+        public Task<bool> UseLocal(Project project, string name, string path, Action<ProgressUpdate> report = null);
         /// <summary>Adds a local module to the project: a dependency overridden by the local folder.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The module name.</param>
         /// <param name="version">The module version, defaults to 0.1.0.</param>
         /// <param name="path">The folder of the local module.</param>
-        public Task<bool> AddLocal(Project project, string name, string version, string path);
+        /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
+        public Task<bool> AddLocal(Project project, string name, string version, string path, Action<ProgressUpdate> report = null);
         /// <summary>Stops using a local module and goes back to the released version.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The module name.</param>
-        public Task<bool> UseReleased(Project project, string name);
+        /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
+        public Task<bool> UseReleased(Project project, string name, Action<ProgressUpdate> report = null);
         /// <summary>Updates the dependencies of a local module that is used by the project.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The name of the local module.</param>
-        public Task<bool> UpdateLocal(Project project, string name);
+        /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
+        public Task<bool> UpdateLocal(Project project, string name, Action<ProgressUpdate> report = null);
         /// <summary>Creates a new module with typer and uses it as a local module in the project.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The name of the new module.</param>
         /// <param name="outputPath">The folder to create the module folder in.</param>
-        public Task<bool> CreateLocal(Project project, string name, string outputPath);
+        /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
+        public Task<bool> CreateLocal(Project project, string name, string outputPath, Action<ProgressUpdate> report = null);
         /// <summary>Builds a module so its assemblies can be loaded.</summary>
         /// <param name="module">The module to build.</param>
         /// <returns><c>true</c> if the module is built.</returns>

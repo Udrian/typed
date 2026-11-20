@@ -122,16 +122,23 @@ namespace TypeD.Models.Providers
                 foreach (var module in modulesToAdd)
                 {
                     moduleIndex++;
+                    var index = moduleIndex;
                     report(new ProgressUpdate(75, $"Adding modules", $"{module.Name} ({moduleIndex}/{modulesToAdd.Count})", moduleIndex * 100 / modulesToAdd.Count));
+                    // The typer output and progress of each module add is reported as the sub task of the add phase
+                    void ReportModule(ProgressUpdate update) => report(new ProgressUpdate(
+                        75 + (15 * (index - 1) + 15 * update.Progress / 100) / modulesToAdd.Count,
+                        "Adding modules",
+                        $"{module.Name}: {update.SubTask ?? update.Message}",
+                        update.SubProgress ?? update.Progress));
                     try
                     {
                         if (!string.IsNullOrEmpty(module.LocalPath))
                         {
-                            await ModuleModel.AddLocal(project, module.Name, module.Version, module.LocalPath);
+                            await ModuleModel.AddLocal(project, module.Name, module.Version, module.LocalPath, ReportModule);
                         }
                         else
                         {
-                            await ModuleModel.Add(project, module.Author, module.Name, module.Version);
+                            await ModuleModel.Add(project, module.Author, module.Name, module.Version, ReportModule);
                         }
                     }
                     catch
