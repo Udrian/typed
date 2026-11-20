@@ -65,32 +65,32 @@ namespace TypeD.Models
             return typeO;
         }
 
-        public async Task<bool> AddDependency(string projectPath, string dependency)
+        public async Task<bool> AddDependency(string projectPath, string dependency, Action<string> onOutput = null)
         {
-            return (await Run("adddependency", "-p", projectPath, "-d", dependency)).Success;
+            return (await Run(onOutput, "adddependency", "-p", projectPath, "-d", dependency)).Success;
         }
 
-        public async Task<bool> RemoveDependency(string projectPath, string name)
+        public async Task<bool> RemoveDependency(string projectPath, string name, Action<string> onOutput = null)
         {
-            return (await Run("removedependency", "-p", projectPath, "-n", name)).Success;
+            return (await Run(onOutput, "removedependency", "-p", projectPath, "-n", name)).Success;
         }
 
-        public async Task<bool> UpdateDependency(string projectPath, string name = null, string version = null)
+        public async Task<bool> UpdateDependency(string projectPath, string name = null, string version = null, Action<string> onOutput = null)
         {
             var args = new List<string> { "update", "-p", projectPath };
             if (!string.IsNullOrEmpty(name)) args.AddRange(new[] { "-n", name });
             if (!string.IsNullOrEmpty(version)) args.AddRange(new[] { "-v", version });
-            return (await Run(args.ToArray())).Success;
+            return (await Run(onOutput, args.ToArray())).Success;
         }
 
-        public async Task<bool> AddOverride(string projectPath, string name, string localPath)
+        public async Task<bool> AddOverride(string projectPath, string name, string localPath, Action<string> onOutput = null)
         {
-            return (await Run("addoverride", "-p", projectPath, "-n", name, "-l", localPath)).Success;
+            return (await Run(onOutput, "addoverride", "-p", projectPath, "-n", name, "-l", localPath)).Success;
         }
 
-        public async Task<bool> RemoveOverride(string projectPath, string name)
+        public async Task<bool> RemoveOverride(string projectPath, string name, Action<string> onOutput = null)
         {
-            return (await Run("removeoverride", "-p", projectPath, "-n", name)).Success;
+            return (await Run(onOutput, "removeoverride", "-p", projectPath, "-n", name)).Success;
         }
 
         public Task<bool> Resolve(string projectPath, Action<string> onOutput = null)
@@ -106,14 +106,14 @@ namespace TypeD.Models
             return (await Run(onOutput, args.ToArray())).Success;
         }
 
-        public async Task<bool> CreateModule(string name, string outputPath, IEnumerable<string> dependencies = null)
+        public async Task<bool> CreateModule(string name, string outputPath, IEnumerable<string> dependencies = null, Action<string> onOutput = null)
         {
             var args = new List<string> { "new", "-n", name, "-o", outputPath, "-t", "module", "--noCommit" };
             if (dependencies != null && dependencies.Any())
             {
                 args.AddRange(new[] { "-d", string.Join(" ", dependencies) });
             }
-            return (await Run(args.ToArray())).Success;
+            return (await Run(onOutput, args.ToArray())).Success;
         }
 
         // Internal functions
