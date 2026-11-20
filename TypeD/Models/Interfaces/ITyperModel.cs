@@ -61,6 +61,6 @@ namespace TypeD.Models.Interfaces
         /// <param name="name">Name of the module.</param>
         /// <param name="outputPath">Folder to create the module folder in.</param>
         /// <param name="onOutput">Called with each line typer reports while running.</param>
-        public Task<bool> CreateModule(string name, string outputPath, Action<string> onOutput = null);
+        public Task<bool> CreateModule(string name, string outputPath, IEnumerable<string> dependencies = null, Action<string> onOutput = null);
     }
 }
