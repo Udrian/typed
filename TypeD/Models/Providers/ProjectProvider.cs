@@ -134,7 +134,7 @@ namespace TypeD.Models.Providers
                     {
                         if (!string.IsNullOrEmpty(module.LocalPath))
                         {
-                            await ModuleModel.AddLocal(project, module.Name, module.Version, module.LocalPath, ReportModule);
+                            await ModuleModel.AddLocal(project, module.Author, module.Name, module.Version, module.LocalPath, ReportModule);
                         }
                         else
                         {

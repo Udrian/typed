@@ -10,6 +10,7 @@ namespace TypeD.Models.Providers
     {
         // Models
         ITyperModel TyperModel { get; set; }
+        ISettingModel SettingModel { get; set; }
 
         // Constructors
         public ModuleProvider() { }
@@ -17,15 +18,28 @@ namespace TypeD.Models.Providers
         public void Init(IResourceModel resourceModel)
         {
             TyperModel = resourceModel.Get<ITyperModel>();
+            SettingModel = resourceModel.Get<ISettingModel>();
         }
 
         // Functions
         public async Task<IEnumerable<ModuleList>> List(Project project)
         {
-            var moduleList = (await TyperModel.ListModules()).Where(m => m.Name != "TypeD").ToList();
+            // This might be called before a project have been loaded and initialized, which is why we initialize the setting if it's needed.
+            var moduleSettingContext = SettingModel.GetContext<ModuleSettingContext>(SettingLevel.System);
+            if (moduleSettingContext == null)
+            {
+                SettingModel.InitContext<ModuleSettingContext>(project);
+                moduleSettingContext = SettingModel.GetContext<ModuleSettingContext>(SettingLevel.System);
+            }
+
+            var moduleList = (await TyperModel.ListModules(moduleSettingContext.Repositories.Value)).Where(m => m.Name != "TypeD").ToList();
             
             if(project == null)
                 return moduleList;
+
+
+            // Filter module versions based on semantic versioning or allowed branches
+            moduleList.ForEach(m => m.Versions = m.Versions.Where(v => v.Version.Split('.').Length == 3 || moduleSettingContext.Branches.Value.Any(b => v.Version.EndsWith(b))).ToList());
 
             // Modules in use that typer does not know about, for example local ones, are listed with the version in use
             foreach (var module in project.Modules)

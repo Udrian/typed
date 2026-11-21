@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Xml.Linq;
 using TypeD.Models.Data;
 using TypeD.Models.DTO;
 using TypeD.Models.Interfaces;
@@ -28,9 +29,14 @@ namespace TypeD.Models
         }
 
         // Functions
-        public async Task<IEnumerable<ModuleList>> ListModules()
+        public async Task<IEnumerable<ModuleList>> ListModules(List<string> repositories = null)
         {
-            var result = await Run("modules");
+            var args = new List<string> { "modules" };
+            if(repositories != null && repositories.Count > 0 )
+            {
+                args.AddRange(new[] { "-e", string.Join(", ", repositories) });
+            }
+            var result = await Run(args.ToArray());
             var modules = Parse<List<TyperModuleDTO>>(result);
             return (modules ?? new List<TyperModuleDTO>()).Select(m => new ModuleList()
             {
@@ -106,12 +112,12 @@ namespace TypeD.Models
             return (await Run(onOutput, args.ToArray())).Success;
         }
 
-        public async Task<bool> CreateModule(string name, string outputPath, IEnumerable<string> dependencies = null, Action<string> onOutput = null)
+        public async Task<bool> CreateModule(string name, string outputPath, List<DependencyReference> modulesToAdd = null, Action<string> onOutput = null)
         {
             var args = new List<string> { "new", "-n", name, "-o", outputPath, "-t", "module", "--noCommit" };
-            if (dependencies != null && dependencies.Any())
+            if (modulesToAdd != null && modulesToAdd.Any())
             {
-                args.AddRange(new[] { "-d", string.Join(" ", dependencies) });
+                args.AddRange(new[] { "-d", string.Join(" ", modulesToAdd.Select(m => $"{m.Author}@{m.Name}-{m.Version}")) });
             }
             return (await Run(onOutput, args.ToArray())).Success;
         }

@@ -41,11 +41,12 @@ namespace TypeD.Models.Interfaces
         public Task<bool> UseLocal(Project project, string name, string path, Action<ProgressUpdate> report = null);
         /// <summary>Adds a local module to the project: a dependency overridden by the local folder.</summary>
         /// <param name="project">The project.</param>
+        /// <param name="author">The author of the module.</param>
         /// <param name="name">The module name.</param>
         /// <param name="version">The module version, defaults to 0.1.0.</param>
         /// <param name="path">The folder of the local module.</param>
         /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
-        public Task<bool> AddLocal(Project project, string name, string version, string path, Action<ProgressUpdate> report = null);
+        public Task<bool> AddLocal(Project project, string author, string name, string version, string path, Action<ProgressUpdate> report = null);
         /// <summary>Stops using a local module and goes back to the released version.</summary>
         /// <param name="project">The project.</param>
         /// <param name="name">The module name.</param>
@@ -58,10 +59,12 @@ namespace TypeD.Models.Interfaces
         public Task<bool> UpdateLocal(Project project, string name, Action<ProgressUpdate> report = null);
         /// <summary>Creates a new module with typer and uses it as a local module in the project.</summary>
         /// <param name="project">The project.</param>
+        /// <param name="author">The author of the new module.</param>
         /// <param name="name">The name of the new module.</param>
         /// <param name="outputPath">The folder to create the module folder in.</param>
+        /// <param name="modulesToAdd">A list of module dependencies to add to the new module.</param>
         /// <param name="report">Called with the progress of the operation, including the output typer reports.</param>
-        public Task<bool> CreateLocal(Project project, string name, string outputPath, Action<ProgressUpdate> report = null);
+        public Task<bool> CreateLocal(Project project, string author, string name, string outputPath, List<DependencyReference> modulesToAdd = null, Action<ProgressUpdate> report = null);
         /// <summary>Builds a module so its assemblies can be loaded.</summary>
         /// <param name="module">The module to build.</param>
         /// <returns><c>true</c> if the module is built.</returns>

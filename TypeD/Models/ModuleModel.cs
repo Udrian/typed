@@ -285,25 +285,25 @@ namespace TypeD.Models
             return await Apply(project, await TyperModel.UpdateDependency(module.ModulePath, onOutput: Output), report);
         }
 
-        public async Task<bool> AddLocal(Project project, string name, string version, string path, Action<ProgressUpdate> report = null)
+        public async Task<bool> AddLocal(Project project, string author, string name, string version, string path, Action<ProgressUpdate> report = null)
         {
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(path)) return false;
             report?.Invoke(new ProgressUpdate(0, $"Adding local {name}"));
             await Initialize(project);
-            if (!await TyperModel.AddDependency(project.Location, $"local@{name}-{(string.IsNullOrEmpty(version) ? "0.0.0" : version)}",
+            if (!await TyperModel.AddDependency(project.Location, $"{author}@{name}-{(string.IsNullOrEmpty(version) ? "0.0.0" : version)}",
                 line => report?.Invoke(new ProgressUpdate(2, $"Adding local {name}", line)))) return false;
             return await Apply(project, await TyperModel.AddOverride(project.Location, name, path,
                 line => report?.Invoke(new ProgressUpdate(5, $"Adding local {name}", line))), report);
         }
 
-        public async Task<bool> CreateLocal(Project project, string name, string outputPath, Action<ProgressUpdate> report = null)
+        public async Task<bool> CreateLocal(Project project, string author, string name, string outputPath, List<DependencyReference> modulesToAdd = null, Action<ProgressUpdate> report = null)
         {
             report?.Invoke(new ProgressUpdate(0, $"Creating module {name}"));
-            if (!await TyperModel.CreateModule(name, outputPath,
+            if (!await TyperModel.CreateModule(name, outputPath, modulesToAdd,
                 onOutput: line => report?.Invoke(new ProgressUpdate(2, $"Creating module {name}", line)))) return false;
 
             // The new module has no release yet, so it is added as a dependency that is overridden by the local folder
-            return await AddLocal(project, name, "0.0.0", Path.Combine(outputPath, name.ToLower()), report);
+            return await AddLocal(project, author, name, "0.0.0", Path.Combine(outputPath, name.ToLower()), report);
         }
 
         public async Task<bool> Build(Module module)

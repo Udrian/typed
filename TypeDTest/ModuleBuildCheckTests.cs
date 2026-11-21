@@ -226,8 +226,8 @@ public class ModuleBuildCheckTests
             Assert.Equal(changed, await modules.UseLocal(project, "Mod", Path.Combine(directory, "local")));
             Assert.Equal(changed, await modules.UseReleased(project, "Mod"));
             Assert.Equal(changed, await modules.Remove(project, "Mod"));
-            Assert.Equal(changed, await modules.AddLocal(project, "Mod", "1.0.0", Path.Combine(directory, "local")));
-            Assert.Equal(changed, await modules.CreateLocal(project, "Mod", directory));
+            Assert.Equal(changed, await modules.AddLocal(project, "Author", "Mod", "1.0.0", Path.Combine(directory, "local")));
+            Assert.Equal(changed, await modules.CreateLocal(project, "Author", "Mod", directory));
 
             Assert.Contains(nameof(ITyperModel.AddDependency), calls);
             Assert.Contains(nameof(ITyperModel.UpdateDependency), calls);

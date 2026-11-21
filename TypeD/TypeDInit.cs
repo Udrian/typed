@@ -80,6 +80,7 @@ namespace TypeD
             BrandingSettingContext.LoadWorkspace(project.Location);
             SettingModel.InitContext<BrandingSettingContext>(project);
             SettingModel.InitContext<ThemeSettingContext>(project);
+            SettingModel.InitContext<ModuleSettingContext>(project);
         }
 
         /// <summary>Stops watching an unloaded project and removes its settings.</summary>
@@ -93,6 +94,7 @@ namespace TypeD
             var SettingModel = resourceModel.Get<ISettingModel>();
             SettingModel.RemoveContext<MainWindowSettingContext>();
             SettingModel.RemoveContext<BrandingSettingContext>();
+            SettingModel.RemoveContext<ModuleSettingContext>();
             SettingModel.InitContext<ThemeSettingContext>(null);
         }
     }

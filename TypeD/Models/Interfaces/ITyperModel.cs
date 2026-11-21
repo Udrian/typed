@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using TypeD.Models.Data;
 
 namespace TypeD.Models.Interfaces
@@ -11,7 +8,7 @@ namespace TypeD.Models.Interfaces
         /// <summary>Gets a value indicating whether typer could be found.</summary>
         public bool IsAvailable { get; }
         /// <summary>Lists all registered modules with their versions.</summary>
-        public Task<IEnumerable<ModuleList>> ListModules();
+        public Task<IEnumerable<ModuleList>> ListModules(List<string> repositories = null);
         /// <summary>Lists the effective dependencies of a project or local module.</summary>
         /// <param name="projectPath">Folder containing typeo.json.</param>
         public Task<IEnumerable<ModuleDependency>> ListDependencies(string projectPath);
@@ -60,7 +57,8 @@ namespace TypeD.Models.Interfaces
         /// <summary>Creates a new module project.</summary>
         /// <param name="name">Name of the module.</param>
         /// <param name="outputPath">Folder to create the module folder in.</param>
+        /// <param name="modulesToAdd">Modules to add to the new module, defaults to TypeOCore.</param>
         /// <param name="onOutput">Called with each line typer reports while running.</param>
-        public Task<bool> CreateModule(string name, string outputPath, IEnumerable<string> dependencies = null, Action<string> onOutput = null);
+        public Task<bool> CreateModule(string name, string outputPath, List<DependencyReference> modulesToAdd = null, Action<string> onOutput = null);
     }
 }
