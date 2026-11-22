@@ -20,10 +20,16 @@ namespace TypeD.Models.Providers
 
         public List<string> ListAllPaths(Project project)
         {
-            string pattern;
+            var result = new List<string>();
             lock (SyncRoot)
-                pattern = string.Concat(SupportedContentTypes.Keys.Select(s => "*." + s));
-            return Directory.EnumerateFiles(project.ProjectContentPath, pattern, SearchOption.AllDirectories).ToList();
+            {
+                foreach(var file in Directory.EnumerateFiles(project.ProjectContentPath, "*.*", SearchOption.AllDirectories)
+                    .Where(f => SupportedContentTypes.Keys.Any(extension => extension == Path.GetExtension(f).TrimStart('.').ToLowerInvariant())))
+                {
+                    result.Add(file);
+                }
+            }
+            return result;
         }
         public async Task<Content> GetContentAsync(string path)
         {
