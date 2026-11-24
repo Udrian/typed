@@ -55,6 +55,7 @@ namespace TypeD
             properties.Register(new Int32PropertyDefinition());
             properties.Register(new DoublePropertyDefinition());
             properties.Register(new EnumPropertyDefinition());
+            properties.RegisterTemplate(new DynamicComboBoxPropertyTemplate());
         }
 
         /// <summary>Starts watching a loaded project and initializes its settings.</summary>

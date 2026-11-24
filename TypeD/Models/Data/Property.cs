@@ -23,7 +23,35 @@ namespace TypeD.Models.Data
             PropertyTemplateType = property.PropertyTemplateType;
             FromComponent = property.FromComponent;
             ReadOnly = property.ReadOnly;
+            DynamicOptions = property.DynamicOptions;
+            GenerateCode = property.GenerateCode;
         }
+
+        /// <summary>
+        /// Creates a string property edited with a combo box whose options are computed from the owning component
+        /// each time the editor is built.
+        /// </summary>
+        /// <param name="name">The property name.</param>
+        /// <param name="options">Computes the available options from the owning component.</param>
+        /// <param name="generateCode">Whether the code generator writes an assignment for the property.</param>
+        public static Property CreateDynamicComboBox(string name, Func<Component, IEnumerable<string>> options, bool generateCode = false)
+        {
+            return new Property
+            {
+                Name = name,
+                Type = typeof(string),
+                PropertyTemplateType = typeof(DynamicComboBoxPropertyTemplate),
+                DynamicOptions = options,
+                GenerateCode = generateCode
+            };
+        }
+
+        /// <summary>Gets or sets a function computing the selectable options from the owning component; null for a static property.</summary>
+        [JsonIgnore]
+        public Func<Component, IEnumerable<string>> DynamicOptions { get; set; }
+        /// <summary>Gets or sets whether the generated code assigns this property; false for editor-only properties.</summary>
+        [JsonIgnore]
+        public bool GenerateCode { get; set; } = true;
 
         /// <summary>
         /// Gets or sets the name of the property.

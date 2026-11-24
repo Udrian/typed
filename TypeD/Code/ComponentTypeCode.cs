@@ -261,7 +261,7 @@ namespace TypeD.Code
         /// <param name="prepend">Text placed before the property name, e.g. a child variable and a dot.</param>
         protected void AddPropertyCode(TypeD.Models.Data.Property property, string prepend = "")
         {
-            if (string.IsNullOrEmpty(property.Name) || property.ReadOnly)
+            if (string.IsNullOrEmpty(property.Name) || property.ReadOnly || !property.GenerateCode)
                 return;
 
             Writer.AddLine($"{prepend}{property.Name} = {GetValueCode(property.Type, property.Value)};");

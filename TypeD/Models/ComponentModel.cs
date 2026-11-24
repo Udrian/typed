@@ -48,6 +48,8 @@ namespace TypeD.Models
         {
             if (child.ParentComponent != null)
                 throw new InvalidOperationException("The component already belongs to a parent.");
+            if (parent.Template?.CanAddChild(child) == false)
+                throw new InvalidOperationException($"{parent.FullName} does not allow adding {child.FullName}.");
 
             if (index < 0 || index > parent.Children.Count)
                 index = parent.Children.Count;

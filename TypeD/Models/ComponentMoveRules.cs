@@ -30,6 +30,8 @@ namespace TypeD.Models
             newParent.Template?.ChildrenFilter(filter);
             if (!(filter.Filters ?? string.Empty).Contains($"{node.RootBaseComponent.FullName};"))
                 return false;
+            if (!ReferenceEquals(node.ParentComponent, newParent) && newParent.Template?.CanAddChild(node) == false)
+                return false;
             var siblings = newParent.Children.Where(child => !ReferenceEquals(child, node)).ToList();
             switch (position)
             {

@@ -42,6 +42,18 @@ namespace TypeD.Components
         /// criteria.</remarks>
         /// <param name="filter">An instance of <see cref="FilterHelper"/> that defines the filtering criteria to apply.</param>
         public abstract void ChildrenFilter(FilterHelper filter);
+
+        /// <summary>
+        /// Determines whether the given component may be added as a new child of <see cref="Component"/>, on top of the
+        /// type rules of <see cref="ChildrenFilter"/>. Override to limit what the component accepts, e.g. the number of
+        /// children of a kind. It is not consulted when an existing child is reordered within its parent.
+        /// </summary>
+        /// <param name="child">The component that would be added.</param>
+        /// <returns><see langword="true"/> if the child may be added; otherwise, <see langword="false"/>.</returns>
+        public virtual bool CanAddChild(Component child)
+        {
+            return true;
+        }
     }
 
     /// <summary>

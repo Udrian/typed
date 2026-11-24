@@ -81,7 +81,7 @@ namespace TypeD.Models
             IsCurrentTarget(data) && IsAttached(data.Node);
 
         public bool CanDuplicate(NodeClipboardCommandData data) =>
-            CanCopy(data) && data.Node.ParentComponent != null && Allows(data.Node.ParentComponent, data.Node.RootBaseComponent.FullName) &&
+            CanCopy(data) && data.Node.ParentComponent != null && Allows(data.Node.ParentComponent, data.Node) &&
             !Ancestors(data.Node.ParentComponent).Any(ancestor => ancestor.FullName == data.Node.FullName);
 
         public bool CanPaste(NodeClipboardCommandData data) =>
@@ -95,7 +95,7 @@ namespace TypeD.Models
         private bool AllowsSnapshot(Project project, Component parent, ComponentChildDTO snapshot)
         {
             var definition = ComponentProvider.Load(project, snapshot.FullName);
-            return definition != null && Allows(parent, definition.RootBaseComponent.FullName) &&
+            return definition != null && Allows(parent, definition) &&
                 !Ancestors(parent).Any(ancestor => ancestor.FullName == snapshot.FullName) &&
                 snapshot.Children.All(child => HasDefinitions(project, child));
         }
@@ -112,13 +112,14 @@ namespace TypeD.Models
 
         private static bool IsAttached(Component node) => !Ancestors(node).Any(ancestor => ancestor.Removed);
 
-        private static bool Allows(Component parent, string rootType)
+        private static bool Allows(Component parent, Component child)
         {
             if (parent.ReadOnly || !IsAttached(parent))
                 return false;
             var filter = new FilterHelper();
             parent.Template?.ChildrenFilter(filter);
-            return (filter.Filters ?? string.Empty).Contains(rootType + ";", StringComparison.Ordinal);
+            return (filter.Filters ?? string.Empty).Contains(child.RootBaseComponent.FullName + ";", StringComparison.Ordinal)
+                && parent.Template?.CanAddChild(child) != false;
         }
 
         public async Task CopyAsync(NodeClipboardCommandData data)
