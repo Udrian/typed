@@ -22,6 +22,51 @@ public class GameLogModelTests
     }
 
     [Fact]
+    public void AddRange_StoresEntriesAndRaisesOneBatchEvent()
+    {
+        var model = CreateModel();
+        var addedEntryCount = 0;
+        IReadOnlyList<GameLogEntry> addedBatch = null;
+        var trimmed = true;
+        model.EntryAdded += _ => addedEntryCount++;
+        model.EntriesAdded += (entries, entriesWereTrimmed) =>
+        {
+            addedBatch = entries;
+            trimmed = entriesWereTrimmed;
+        };
+
+        model.AddRange(new[]
+        {
+            new GameLogEntry { Time = DateTime.Now, Level = GameLogLevel.Info, Message = "first" },
+            new GameLogEntry { Time = DateTime.Now, Level = GameLogLevel.Warning, Message = "second" }
+        });
+
+        Assert.Equal(2, addedEntryCount);
+        Assert.Equal(new[] { "first", "second" }, addedBatch.Select(entry => entry.Message));
+        Assert.False(trimmed);
+        Assert.Equal(new[] { "first", "second" }, model.GetEntries().Select(entry => entry.Message));
+    }
+
+    [Fact]
+    public void AddRange_ReportsWhenTheEntryLimitTrimsOldMessages()
+    {
+        var model = CreateModel();
+        var trimmed = false;
+        model.EntriesAdded += (_, entriesWereTrimmed) => trimmed = entriesWereTrimmed;
+        var entries = Enumerable.Range(0, 5100)
+            .Select(i => new GameLogEntry { Time = DateTime.Now, Level = GameLogLevel.Debug, Message = $"line {i}" })
+            .ToArray();
+
+        model.AddRange(entries);
+
+        var storedEntries = model.GetEntries();
+        Assert.True(trimmed);
+        Assert.Equal(5000, storedEntries.Count);
+        Assert.Equal("line 100", storedEntries[0].Message);
+        Assert.Equal("line 5099", storedEntries[^1].Message);
+    }
+
+    [Fact]
     public void Clear_RemovesEntriesAndRaisesEvent()
     {
         var model = CreateModel();
@@ -98,11 +143,11 @@ public class GameLogModelTests
         Assert.Contains("FATL: the game died", report.GameLog);
     }
 
-    private static IGameLogModel CreateModel()
+    private static IBatchedGameLogModel CreateModel()
     {
         var resources = new TestResourceModel();
         TypeDInit.Init(resources);
-        var model = resources.Get<IGameLogModel>();
+        var model = Assert.IsAssignableFrom<IBatchedGameLogModel>(resources.Get<IGameLogModel>());
         model.Init(resources);
         return model;
     }
