@@ -22,5 +22,14 @@ namespace TypeD.Models.Data
         /// <param name="project">The project being saved.</param>
         /// <returns>A task that completes when saving is done.</returns>
         public abstract Task SaveAction(Project project);
+
+        /// <summary>Writes this context's pending data into an autosave snapshot.</summary>
+        /// <param name="project">The open project.</param>
+        /// <param name="snapshotProject">The project copy being autosaved.</param>
+        /// <returns>A task that completes when the snapshot data is written.</returns>
+        public virtual Task SaveAutosaveAction(Project project, Project snapshotProject)
+        {
+            throw new NotSupportedException($"{GetType().Name} does not support autosaving.");
+        }
     }
 }

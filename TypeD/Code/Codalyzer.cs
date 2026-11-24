@@ -654,6 +654,26 @@ namespace TypeD.Code
             BaseFile.Save();
         }
 
+        /// <summary>Generates and writes this code to a copied project for an autosave.</summary>
+        /// <param name="snapshotProject">The copied project.</param>
+        public virtual void SaveForAutosave(Project snapshotProject)
+        {
+            var originalProject = Project;
+            var originalPath = BaseFile.FilePath;
+            try
+            {
+                Project = snapshotProject;
+                BaseFile.FilePath = FilePath();
+                Generate();
+                Save();
+            }
+            finally
+            {
+                Project = originalProject;
+                BaseFile.FilePath = originalPath;
+            }
+        }
+
         /// <summary>
         /// Constructs the file path for the source file based on the project location, namespace, and class name.
         /// </summary>

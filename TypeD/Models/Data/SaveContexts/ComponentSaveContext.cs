@@ -50,6 +50,17 @@ namespace TypeD.Models.Data.SaveContexts
         /// <inheritdoc/>
         public override Task SaveAction(Project project)
         {
+            return SaveActionToProject(project ?? Project);
+        }
+
+        /// <inheritdoc/>
+        public override Task SaveAutosaveAction(Project project, Project snapshotProject)
+        {
+            return SaveActionToProject(snapshotProject);
+        }
+
+        private Task SaveActionToProject(Project targetProject)
+        {
             return Task.Run(() => {
                 foreach (var saveComponent in Components)
                 {
@@ -82,17 +93,17 @@ namespace TypeD.Models.Data.SaveContexts
                                 Group = p.Group,
                                 Access = p.Access.ToString()
                             }).ToList()
-                    }, ComponentProvider.GetPath(Project, saveComponent));
+                    }, ComponentProvider.GetPath(targetProject, saveComponent));
                 }
 
                 foreach (var deletedComponent in DeletedComponents)
                 {
-                    if (ComponentProvider.Exists(Project, deletedComponent))
+                    if (ComponentProvider.Exists(targetProject, deletedComponent))
                     {
-                        var componentFile = ComponentProvider.GetPath(Project, deletedComponent);
+                        var componentFile = ComponentProvider.GetPath(targetProject, deletedComponent);
                         File.Delete(componentFile);
-                        var csFile = Path.Combine(Project.Location, $"{deletedComponent.FullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
-                        var csTypeDFile = Path.Combine(Project.ProjectComponentCodePath, $"{deletedComponent.FullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
+                        var csFile = Path.Combine(targetProject.Location, $"{deletedComponent.FullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
+                        var csTypeDFile = Path.Combine(targetProject.ProjectComponentCodePath, $"{deletedComponent.FullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
                         if (File.Exists(csFile))
                             File.Delete(csFile);
                         if (File.Exists(csTypeDFile))
@@ -111,11 +122,11 @@ namespace TypeD.Models.Data.SaveContexts
                 {
                     var oldFullName = $"{renamedComponent.Item2.Namespace}.{renamedComponent.Item1}";
 
-                    File.Delete(ComponentProvider.GetPath(Project, oldFullName));
-                    var csFile = Path.Combine(Project.Location, $"{oldFullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
-                    var csTypeDFile = Path.Combine(Project.ProjectComponentCodePath, $"{oldFullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
-                    var csFileNew = Path.Combine(Project.Location, $"{renamedComponent.Item2.FullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
-                    var csTypeDFileNew = Path.Combine(Project.ProjectComponentCodePath, $"{renamedComponent.Item2.FullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
+                    File.Delete(ComponentProvider.GetPath(targetProject, oldFullName));
+                    var csFile = Path.Combine(targetProject.Location, $"{oldFullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
+                    var csTypeDFile = Path.Combine(targetProject.ProjectComponentCodePath, $"{oldFullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
+                    var csFileNew = Path.Combine(targetProject.Location, $"{renamedComponent.Item2.FullName.Replace('.', Path.DirectorySeparatorChar)}.cs");
+                    var csTypeDFileNew = Path.Combine(targetProject.ProjectComponentCodePath, $"{renamedComponent.Item2.FullName.Replace('.', Path.DirectorySeparatorChar)}.typed.cs");
                     if (File.Exists(csFile))
                     {
                         File.Move(csFile, csFileNew);
@@ -128,8 +139,8 @@ namespace TypeD.Models.Data.SaveContexts
                     }
                 }
 
-                if (!Project.IsClosing)
-                    ProjectModel.BuildComponentTree(Project);
+                if (!targetProject.IsClosing)
+                    ProjectModel.BuildComponentTree(targetProject);
             });
         }
 

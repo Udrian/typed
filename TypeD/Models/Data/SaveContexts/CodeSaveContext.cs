@@ -32,5 +32,15 @@ namespace TypeD.Models.Data.SaveContexts
                 }
             });
         }
+
+        /// <inheritdoc/>
+        public override Task SaveAutosaveAction(Project project, Project snapshotProject)
+        {
+            return Task.Run(() =>
+            {
+                foreach (var code in Codes)
+                    code.SaveForAutosave(snapshotProject);
+            });
+        }
     }
 }

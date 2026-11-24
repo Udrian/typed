@@ -6,6 +6,10 @@ namespace TypeD.Models.Interfaces
     /// <summary>Model that tracks and performs pending saves.</summary>
     public interface ISaveModel : IModel
     {
+        /// <summary>Raised when the model's pending-save state changes.</summary>
+        event Action<bool> SaveStateChanged;
+        /// <summary>Records a completed autosave and notifies listeners without clearing pending saves.</summary>
+        void NotifyAutosaveCompleted(Project project);
         /// <summary>Gets a value indicating whether there are pending saves.</summary>
         public bool AnythingToSave { get; }
         /// <summary>Queues a save context to be saved later.</summary>
@@ -29,5 +33,9 @@ namespace TypeD.Models.Interfaces
         /// <summary>Performs all queued saves, including saves queued by save callbacks.</summary>
         /// <param name="project">The project.</param>
         public Task Save(Project project);
+        /// <summary>Creates a project copy and writes all pending save contexts into it without clearing them.</summary>
+        /// <param name="project">The open project.</param>
+        /// <param name="snapshotPath">The destination folder for the autosave snapshot.</param>
+        public Task CreateAutosave(Project project, string snapshotPath);
     }
 }

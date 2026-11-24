@@ -35,5 +35,23 @@ namespace TypeD.Models.Data.SaveContexts
                 CSProj.Save(Path);
             });
         }
+
+        /// <inheritdoc/>
+        public override Task SaveAutosaveAction(Project project, Project snapshotProject)
+        {
+            return Task.Run(() =>
+            {
+                var sourcePath = System.IO.Path.GetFullPath(Path);
+                var sourceRoot = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(project.Location));
+                var relativePath = System.IO.Path.GetRelativePath(sourceRoot, sourcePath);
+                if (System.IO.Path.IsPathRooted(relativePath) || relativePath == ".." ||
+                    relativePath.StartsWith($"..{System.IO.Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+                    throw new InvalidOperationException("The project file is outside the project folder.");
+
+                var targetPath = System.IO.Path.Combine(snapshotProject.Location, relativePath);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(targetPath));
+                CSProj.Save(targetPath);
+            });
+        }
     }
 }

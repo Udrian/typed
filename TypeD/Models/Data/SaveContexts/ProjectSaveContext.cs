@@ -29,7 +29,13 @@ namespace TypeD.Models.Data.SaveContexts
         /// <inheritdoc/>
         public override Task SaveAction(Project project)
         {
-            return ProjectProvider.Save(Project);
+            return ProjectProvider.Save(project ?? Project);
+        }
+
+        /// <inheritdoc/>
+        public override Task SaveAutosaveAction(Project project, Project snapshotProject)
+        {
+            return ProjectProvider.Save(snapshotProject);
         }
     }
 }

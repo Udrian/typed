@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using TypeD.Models.Data;
 
 namespace TypeD.Code
 {
@@ -88,6 +89,28 @@ namespace TypeD.Code
             }
 
             TypeDFile.Save();
+        }
+
+        /// <inheritdoc/>
+        public override void SaveForAutosave(Project snapshotProject)
+        {
+            var originalProject = Project;
+            var originalBasePath = BaseFile.FilePath;
+            var originalTypeDPath = TypeDFile.FilePath;
+            try
+            {
+                Project = snapshotProject;
+                BaseFile.FilePath = FilePath();
+                TypeDFile.FilePath = FilePathTypeD();
+                Generate();
+                Save();
+            }
+            finally
+            {
+                Project = originalProject;
+                BaseFile.FilePath = originalBasePath;
+                TypeDFile.FilePath = originalTypeDPath;
+            }
         }
 
         /// <summary>

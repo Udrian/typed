@@ -70,5 +70,27 @@ namespace TypeD.Models.Data
             FormatVersions = projectData.FormatVersions;
             ExtensionData = projectData.ExtensionData;
         }
+
+        /// <summary>Creates a project view that uses a different location while retaining the loaded project state.</summary>
+        /// <param name="location">The location of the copied project.</param>
+        /// <returns>A project instance for the copied project.</returns>
+        public Project CreateCopyAtLocation(string location)
+        {
+            return new Project(location, new ProjectDTO
+            {
+                ProjectName = ProjectName,
+                CSSolutionPath = CSSolutionPath,
+                CSProjName = CSProjName,
+                StartScene = StartScene,
+                FormatVersions = FormatVersions,
+                ExtensionData = ExtensionData
+            })
+            {
+                Modules = Modules,
+                ComponentTree = ComponentTree,
+                Assembly = Assembly,
+                IsClosing = true
+            };
+        }
     }
 }

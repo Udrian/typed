@@ -77,6 +77,7 @@ namespace TypeD
             // Settings
             var SettingModel = resourceModel.Get<ISettingModel>();
             SettingModel.InitContext<MainWindowSettingContext>(project);
+            SettingModel.InitContext<AutosaveSettingContext>(project);
             BrandingSettingContext.LoadWorkspace(project.Location);
             SettingModel.InitContext<BrandingSettingContext>(project);
             SettingModel.InitContext<ThemeSettingContext>(project);
@@ -93,9 +94,11 @@ namespace TypeD
             // Settings
             var SettingModel = resourceModel.Get<ISettingModel>();
             SettingModel.RemoveContext<MainWindowSettingContext>();
+            SettingModel.RemoveContext<AutosaveSettingContext>();
             SettingModel.RemoveContext<BrandingSettingContext>();
             SettingModel.RemoveContext<ModuleSettingContext>();
             SettingModel.InitContext<ThemeSettingContext>(null);
+            SettingModel.InitContext<AutosaveSettingContext>(null);
         }
     }
 }

@@ -32,6 +32,17 @@ namespace TypeD.Models.Data.SaveContexts
         /// <inheritdoc/>
         public override Task SaveAction(Project project)
         {
+            return SaveSettings(project, false);
+        }
+
+        /// <inheritdoc/>
+        public override Task SaveAutosaveAction(Project project, Project snapshotProject)
+        {
+            return SaveSettings(snapshotProject, true);
+        }
+
+        private Task SaveSettings(Project project, bool autosave)
+        {
             return Task.Run(() =>
             {
                 foreach (var setting in Settings)
@@ -39,6 +50,8 @@ namespace TypeD.Models.Data.SaveContexts
                     if (!setting.ShouldSave) continue;
 
                     var path = SettingModel.GetPath(project, setting.Level);
+                    if (autosave && setting.Level != SettingLevel.Project)
+                        path = Path.Combine(project.Location, ".autosave-settings", setting.Level.ToString());
                     var filePath = $"{path}/{SettingModel.GetName(setting.GetType())}.json";
                     var document = JsonSerializer.SerializeToNode(setting, setting.GetType(), JSON.CreateOptions()).AsObject();
                     if (setting.Overrides != null)
@@ -48,7 +61,8 @@ namespace TypeD.Models.Data.SaveContexts
                             if (!setting.Overrides.Contains(property.Name)) document.Remove(property.Name);
                     }
                     JSON.Serialize(document, filePath);
-                    setting.ShouldSave = false;
+                    if (!autosave)
+                        setting.ShouldSave = false;
                 }
             });
         }
