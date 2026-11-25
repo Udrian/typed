@@ -151,6 +151,30 @@ public class LibraryModelApiTests
     }
 
     [Fact]
+    public void SimulationModel_ResolvesDeltaTimeFromPlayStateForcedValueAndSpeed()
+    {
+        var resources = InitializeResources();
+        var model = resources.Get<ISimulationModel>();
+        var changes = 0;
+        model.Changed += () => changes++;
+
+        Assert.True(model.IsPlaying);
+        Assert.Equal(0.5, model.ResolveDeltaTime(0.5));
+        model.SpeedMultiplier = 2;
+        Assert.Equal(1.0, model.ResolveDeltaTime(0.5));
+        model.ForceDeltaTime = true;
+        model.ForcedDeltaTime = 0.1;
+        Assert.Equal(0.2, model.ResolveDeltaTime(0.5));
+        model.SpeedMultiplier = -1;
+        Assert.Equal(0, model.SpeedMultiplier);
+        model.ForcedDeltaTime = double.NaN;
+        Assert.Equal(0.1, model.ForcedDeltaTime);
+        model.IsPlaying = false;
+        Assert.Null(model.ResolveDeltaTime(0.5));
+        Assert.Equal(5, changes);
+    }
+
+    [Fact]
     public async Task NodeClipboardModel_CopiesIndependentSnapshotsAndClearsExternalClipboard()
     {
         var resources = InitializeResources();

@@ -40,6 +40,7 @@ namespace TypeD
                 new CommandHistoryModel(),
                 new NodeSelectionModel(),
                 new ViewerCameraModel(),
+                new SimulationModel(),
                 new NodeClipboardModel(),
                 new EditorCommandRegistry(),
             // Providers
