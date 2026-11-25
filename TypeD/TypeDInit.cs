@@ -37,6 +37,7 @@ namespace TypeD
                 new FormatVersionModel(),
                 new IconModel(),
                 new PanelModel(),
+                new PropertyEditorModel(),
                 new CommandHistoryModel(),
                 new NodeSelectionModel(),
                 new ViewerCameraModel(),

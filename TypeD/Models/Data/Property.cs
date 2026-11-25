@@ -25,6 +25,7 @@ namespace TypeD.Models.Data
             ReadOnly = property.ReadOnly;
             DynamicOptions = property.DynamicOptions;
             GenerateCode = property.GenerateCode;
+            Hidden = property.Hidden;
         }
 
         /// <summary>
@@ -52,6 +53,9 @@ namespace TypeD.Models.Data
         /// <summary>Gets or sets whether the generated code assigns this property; false for editor-only properties.</summary>
         [JsonIgnore]
         public bool GenerateCode { get; set; } = true;
+        /// <summary>Gets or sets whether the properties panel hides this property, for values edited by a module's own editor.</summary>
+        [JsonIgnore]
+        public bool Hidden { get; set; }
 
         /// <summary>
         /// Gets or sets the name of the property.

@@ -17,7 +17,9 @@ namespace TypeD.Models.Data.Hooks
             /// <summary>The panel was attached to the main window.</summary>
             Attached,
             /// <summary>The panel was detached into its own window.</summary>
-            Detached
+            Detached,
+            /// <summary>The user closed the panel in the dock; the panel is already closed.</summary>
+            ClosedByUser
         }
 
         /// <summary>Gets or sets the panel whose status changed.</summary>
