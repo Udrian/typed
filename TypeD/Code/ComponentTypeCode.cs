@@ -61,6 +61,14 @@ namespace TypeD.Code
             "FullParentPath", "Visible", "Enabled"
         };
 
+        private const string DrawStackTypeName = "TypeOEngine.Typedeaf.Core.Engine.DrawStack";
+
+        private string GetStackPropertyCode(Component stack, string name, Type type, object fallback)
+        {
+            var property = stack.Properties.FirstOrDefault(p => p.Name == name);
+            return GetValueCode(type, property?.Value ?? fallback);
+        }
+
         private Dictionary<Component, string> GetPublicChildNames()
         {
             var names = new Dictionary<Component, string>();
@@ -83,6 +91,12 @@ namespace TypeD.Code
                     continue;
 
                 var baseTypeName = child.RootBaseComponent.FullName;
+                if (baseTypeName == DrawStackTypeName)
+                {
+                    if (!child.Removed)
+                        CollectPublicChildren(child, false, names, used);
+                    continue;
+                }
                 var isEntity = baseTypeName == "TypeOEngine.Typedeaf.Core.Entities.Entity";
                 var isDrawable = baseTypeName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable";
                 if (!isEntity && !isDrawable)
@@ -201,13 +215,26 @@ namespace TypeD.Code
                 Writer.NewLine();
         }
 
-        private void AddChildrenCode(Component parent, string parentExpression, bool instanceChildrenOnly, ref int childIndex, Dictionary<Component, string> publicNames)
+        private void AddChildrenCode(Component parent, string parentExpression, bool instanceChildrenOnly, ref int childIndex, Dictionary<Component, string> publicNames, string drawStackVariable = null)
         {
             foreach (var childComponent in parent.Children)
             {
                 var definitionChild = instanceChildrenOnly && parent.DefinitionChildren.Contains(childComponent);
                 if (definitionChild && !childComponent.HasChanges)
                     continue;
+
+                if (childComponent.RootBaseComponent.FullName == DrawStackTypeName)
+                {
+                    if (childComponent.Removed)
+                        continue;
+
+                    var stackVariable = $"child{childIndex++}";
+                    Writer.AddLeftCurlyBracket();
+                    Writer.AddLine($"var {stackVariable} = {parentExpression}.CreateDrawStack(\"{childComponent.ID}\", {GetStackPropertyCode(childComponent, "Name", typeof(string), childComponent.Name)}, {GetStackPropertyCode(childComponent, "DrawOrder", typeof(int), 0)}, {GetStackPropertyCode(childComponent, "IgnoreCamera", typeof(bool), false)});");
+                    AddChildrenCode(childComponent, parentExpression, false, ref childIndex, publicNames, stackVariable);
+                    Writer.AddRightCurlyBrackets();
+                    continue;
+                }
 
                 var isEntity = childComponent.RootBaseComponent.FullName == "TypeOEngine.Typedeaf.Core.Entities.Entity";
                 var isDrawable = childComponent.RootBaseComponent.FullName == "TypeOEngine.Typedeaf.Core.Entities.Drawables.Drawable";
@@ -218,6 +245,8 @@ namespace TypeD.Code
 
                 var variableName = $"child{childIndex++}";
                 var collection = isEntity ? $"{parentExpression}.Entities" : $"{parentExpression}.Drawables";
+                if (drawStackVariable != null && isDrawable)
+                    collection = $"{drawStackVariable}.DrawableManager";
                 Writer.AddLeftCurlyBracket();
                 if (definitionChild)
                 {
@@ -234,7 +263,8 @@ namespace TypeD.Code
                 }
                 else
                 {
-                    Writer.AddLine($"var {variableName} = {collection}.Create<{childComponent.FullName}>(\"{childComponent.ID}\");");
+                    var stackArgument = drawStackVariable != null && isEntity ? $", drawStack: {drawStackVariable}" : "";
+                    Writer.AddLine($"var {variableName} = {collection}.Create<{childComponent.FullName}>(\"{childComponent.ID}\"{stackArgument});");
                     if (publicNames.TryGetValue(childComponent, out var publicName))
                         Writer.AddLine($"{publicName} = {variableName};");
                 }
