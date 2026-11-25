@@ -15,6 +15,10 @@ namespace TypeD.View
         public string ClickParameter { get; set; }
         /// <summary>Gets or sets whether this entry is enabled when the menu is built.</summary>
         public bool IsEnabled { get; set; } = true;
+        /// <summary>Gets or sets whether this entry is a separator.</summary>
+        public bool IsSeparator { get; set; }
+        /// <summary>Gets or sets whether this entry is placed after ordinary context menu entries.</summary>
+        public bool IsLast { get; set; }
         /// <summary>The sub items.</summary>
         public List<MenuItem> Items;
 

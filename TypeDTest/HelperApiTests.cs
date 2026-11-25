@@ -6,6 +6,48 @@ namespace TypeDTest;
 
 public class HelperApiTests
 {
+    [Fact]
+    public void InitContextMenu_PlacesLastItemAfterLaterContributionsAndSeparatesGroups()
+    {
+        var definition = new TypeD.View.Menu();
+        definition.Items.Add(new TypeD.View.MenuItem("_Open"));
+        definition.Items.Add(new TypeD.View.MenuItem { IsSeparator = true });
+        definition.Items.Add(new TypeD.View.MenuItem("_Close") { IsLast = true });
+        definition.Items.Add(new TypeD.View.MenuItem { IsSeparator = true });
+        definition.Items.Add(new TypeD.View.MenuItem("_Edit points"));
+        var menu = new Avalonia.Controls.ContextMenu();
+
+        ViewHelper.InitContextMenu(menu, definition, null);
+
+        Assert.Equal(5, menu.Items.Count);
+        Assert.Equal("_Open", Assert.IsType<Avalonia.Controls.MenuItem>(menu.Items[0]).Header);
+        Assert.IsType<Avalonia.Controls.Separator>(menu.Items[1]);
+        Assert.Equal("_Edit points", Assert.IsType<Avalonia.Controls.MenuItem>(menu.Items[2]).Header);
+        Assert.IsType<Avalonia.Controls.Separator>(menu.Items[3]);
+        Assert.Equal("_Close", Assert.IsType<Avalonia.Controls.MenuItem>(menu.Items[4]).Header);
+    }
+
+    [Fact]
+    public void InitContextMenu_OmitsLeadingAndTrailingSeparatorsAndSupportsNestedSeparators()
+    {
+        var definition = new TypeD.View.Menu();
+        var submenu = new TypeD.View.MenuItem("Actions");
+        submenu.Items.Add(new TypeD.View.MenuItem("First"));
+        submenu.Items.Add(new TypeD.View.MenuItem { IsSeparator = true });
+        submenu.Items.Add(new TypeD.View.MenuItem("Second"));
+        definition.Items.Add(new TypeD.View.MenuItem { IsSeparator = true });
+        definition.Items.Add(submenu);
+        definition.Items.Add(new TypeD.View.MenuItem { IsSeparator = true });
+        var menu = new Avalonia.Controls.ContextMenu();
+
+        ViewHelper.InitContextMenu(menu, definition, null);
+
+        var rendered = Assert.IsType<Avalonia.Controls.MenuItem>(Assert.Single(menu.Items));
+        Assert.Equal(3, rendered.Items.Count);
+        Assert.IsType<Avalonia.Controls.Separator>(rendered.Items[1]);
+        Assert.Equal("Second", Assert.IsType<Avalonia.Controls.MenuItem>(rendered.Items[2]).Header);
+    }
+
     [Theory]
     [InlineData("My component-name", "Mycomponentname")]
     [InlineData("9lives", "_9lives")]

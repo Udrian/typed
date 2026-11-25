@@ -8,17 +8,48 @@ namespace TypeD.Helpers
     /// </summary>
     public static class ViewHelper
     {
+        /// <summary>Builds a context menu, placing last entries after all other contributions.</summary>
+        public static void InitContextMenu(Avalonia.Controls.ContextMenu contextMenu, Menu menu, ViewModelBase model)
+        {
+            var items = menu.Items.Where(item => !item.IsLast).ToList();
+            var lastItems = menu.Items.Where(item => item.IsLast && !item.IsSeparator).ToList();
+            if (lastItems.Count > 0)
+            {
+                items.Add(new MenuItem { IsSeparator = true });
+                items.AddRange(lastItems);
+            }
+
+            var separatorPending = false;
+            foreach (var item in items)
+            {
+                if (item.IsSeparator)
+                {
+                    separatorPending = contextMenu.Items.Count > 0;
+                    continue;
+                }
+
+                if (separatorPending)
+                    contextMenu.Items.Add(new Avalonia.Controls.Separator());
+                separatorPending = false;
+                InitMenu(contextMenu, item, model);
+            }
+        }
+
         /// <summary>Adds a menu item and its sub items to an Avalonia menu, reusing items that already exist.</summary>
         /// <param name="currentMenu">The menu or menu item to add to.</param>
         /// <param name="item">The menu item definition.</param>
         /// <param name="model">The view model that supplies click parameters.</param>
         public static void InitMenu(Avalonia.Controls.ItemsControl currentMenu, MenuItem item, ViewModelBase model)
         {
+            if (item.IsSeparator)
+            {
+                currentMenu.Items.Add(new Avalonia.Controls.Separator());
+                return;
+            }
             Avalonia.Controls.MenuItem newMenuItem = null;
             foreach (var i in currentMenu.Items)
             {
-                var mi = i as Avalonia.Controls.MenuItem;
-                if ((string)mi.Header == item.Name)
+                if (i is Avalonia.Controls.MenuItem mi && mi.Header is string header && header == item.Name)
                 {
                     newMenuItem = mi;
                     break;
@@ -76,7 +107,7 @@ namespace TypeD.Helpers
 
         private static Avalonia.Controls.Control CreateToolbarGroup(Avalonia.Controls.Panel panel, ToolbarGroup group, ViewModelBase model, Action<IReadOnlyList<string>> onOrderChanged)
         {
-            var buttons = new List<Avalonia.Controls.Primitives.ToggleButton>();
+            var buttons = new List<(Avalonia.Controls.Primitives.ToggleButton Button, ToolbarItem Item)>();
             var items = new Avalonia.Controls.StackPanel() { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 2 };
             foreach (var item in group.Items)
             {
@@ -119,13 +150,13 @@ namespace TypeD.Helpers
             return container;
         }
 
-        private static Avalonia.Controls.Control CreateToolbarButton(ToolbarItem item, ToolbarGroup group, ViewModelBase model, List<Avalonia.Controls.Primitives.ToggleButton> toggles)
+        private static Avalonia.Controls.Control CreateToolbarButton(ToolbarItem item, ToolbarGroup group, ViewModelBase model, List<(Avalonia.Controls.Primitives.ToggleButton Button, ToolbarItem Item)> toggles)
         {
             Avalonia.Controls.Button button;
             if (item.IsToggle)
             {
                 var toggle = new Avalonia.Controls.Primitives.ToggleButton() { IsChecked = item.IsChecked?.Invoke() ?? false };
-                toggles.Add(toggle);
+                toggles.Add((toggle, item));
                 button = toggle;
             }
             else
@@ -149,21 +180,31 @@ namespace TypeD.Helpers
 
             button.Click += (sender, e) =>
             {
-                if (item.IsToggle)
+                try
                 {
-                    foreach (var other in toggles)
-                        other.IsChecked = ReferenceEquals(other, button);
+                    if (item.Click == null)
+                        return;
+
+                    object param = null;
+                    if (!string.IsNullOrEmpty(item.ClickParameter))
+                    {
+                        param = model.GetType().GetProperties().FirstOrDefault(p => p.Name == item.ClickParameter)?.GetValue(model);
+                    }
+                    item.Click(param);
                 }
-
-                if (item.Click == null)
-                    return;
-
-                object param = null;
-                if (!string.IsNullOrEmpty(item.ClickParameter))
+                finally
                 {
-                    param = model.GetType().GetProperties().FirstOrDefault(p => p.Name == item.ClickParameter)?.GetValue(model);
+                    // Each toggle reflects its own state, so mutually exclusive toggles (tools) update each other
+                    // while independent toggles (view options) do not
+                    if (item.IsToggle)
+                    {
+                        foreach (var (other, otherItem) in toggles)
+                        {
+                            if (otherItem.IsChecked != null)
+                                other.IsChecked = otherItem.IsChecked();
+                        }
+                    }
                 }
-                item.Click(param);
             };
 
             return button;

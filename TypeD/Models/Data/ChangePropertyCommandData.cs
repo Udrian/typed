@@ -25,5 +25,7 @@ namespace TypeD.Models.Data
         /// Also applies the value to the same-named property of the other selected nodes.
         /// </summary>
         public bool ApplyToSelection { get; set; }
+        /// <summary>Additional explicit property changes to apply and undo together with this change.</summary>
+        public IReadOnlyList<ChangePropertyCommandData> AdditionalChanges { get; set; }
     }
 }
