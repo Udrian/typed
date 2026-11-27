@@ -12,6 +12,17 @@ namespace TypeD.Models.Data
     {
         internal Dictionary<string, int> FormatVersions { get; set; } = new();
         internal Dictionary<string, System.Text.Json.JsonElement> ExtensionData { get; set; } = new();
+        internal HashSet<string> PersistedPropertyOverrides { get; set; } = new(StringComparer.Ordinal);
+
+        /// <summary>Gets whether the component has a saved root-level override for a property.</summary>
+        public bool HasPersistedPropertyOverride(string name) => PersistedPropertyOverrides.Contains(name);
+
+        /// <summary>Moves the saved root-level override marker when a property is renamed.</summary>
+        public void RenamePersistedPropertyOverride(string oldName, string newName)
+        {
+            if (PersistedPropertyOverrides.Remove(oldName))
+                PersistedPropertyOverrides.Add(newName);
+        }
 
         // Properties
         /// <summary>
@@ -136,6 +147,23 @@ namespace TypeD.Models.Data
         /// and generated into the component's code.
         /// </summary>
         public List<CustomProperty> CustomProperties { get; set; }
+
+        /// <summary>
+        /// Gets or sets deleted custom property names, so stale compiled properties are not shown before a rebuild.
+        /// </summary>
+        public List<string> RemovedCustomProperties { get; set; }
+
+        /// <summary>Returns whether a compiled property was deleted from its declaring component.</summary>
+        public bool IsRemovedCustomProperty(string declaringTypeName, string propertyName)
+        {
+            for (var declaring = this; declaring != null; declaring = declaring.BaseInheritedComponent)
+            {
+                if (declaring.FullName == declaringTypeName)
+                    return declaring.RemovedCustomProperties.Contains(propertyName)
+                        && !declaring.CustomProperties.Any(property => property.Name == propertyName);
+            }
+            return false;
+        }
 
         /// <summary>
         /// Gets or sets whether the component definition can't be modified when opened on its own. Base type components
@@ -271,6 +299,7 @@ namespace TypeD.Models.Data
             Properties = new List<Property>();
             OveriddenProperties = new List<Property>();
             CustomProperties = new List<CustomProperty>();
+            RemovedCustomProperties = new List<string>();
         }
     }
 }

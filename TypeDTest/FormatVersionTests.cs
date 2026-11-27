@@ -6,6 +6,7 @@ using TypeD.Code;
 using TypeD.Components;
 using TypeD.Helpers;
 using TypeD.Models.Data;
+using TypeD.Models.Data.Hooks;
 using TypeD.Models.DTO;
 using TypeD.Models.Data.SaveContexts;
 using TypeD.Models.Interfaces;
@@ -330,6 +331,12 @@ public class FormatVersionTests
             Namespace = "Game",
             Template = new TestTemplate()
         };
+        component.Properties.Add(new Property { Name = "Speed", Type = typeof(int), Value = 5 });
+        component.OveriddenProperties.Add(new Property { Name = "Speed", Type = typeof(int), Value = 5 });
+        var persisted = (HashSet<string>)typeof(Component).GetProperty("PersistedPropertyOverrides",
+            BindingFlags.Instance | BindingFlags.NonPublic).GetValue(component);
+        persisted.Add("Speed");
+        component.RemovedCustomProperties.Add("Health");
         var extensions = new Dictionary<string, JsonElement>
         {
             ["ModuleData"] = JsonSerializer.SerializeToElement(new { Value = 42 })
@@ -346,6 +353,129 @@ public class FormatVersionTests
         Assert.Equal(1, saved["FormatVersions"]["TypeD"].GetValue<int>());
         Assert.Equal(42, saved["ModuleData"]["Value"].GetValue<int>());
         Assert.Equal("Player", saved["ClassName"].GetValue<string>());
+        Assert.Equal("Health", saved["RemovedCustomProperties"][0].GetValue<string>());
+        Assert.Equal("Speed", saved["Properties"][0]["Name"].GetValue<string>());
+        Assert.Equal(5, saved["Properties"][0]["Value"].GetValue<int>());
+    }
+
+    [Fact]
+    public async Task LoadedComponentSave_PreservesExistingOverridesAndPendingDeletion()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        resources.Get<IHookModel>().AddHook<ExtractPropertiesHook>(hook =>
+            hook.Properties.Add(new Property { Name = "Speed", Type = typeof(int), Value = 1 }));
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        project.IsClosing = true;
+        var path = provider.GetPath(project, "Game.Player");
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+        File.WriteAllText(path, JsonSerializer.Serialize(new ComponentDTO
+        {
+            ClassName = "Player",
+            Namespace = "Game",
+            TemplateClass = typeof(LoadableTestTemplate).FullName,
+            BaseInheritedComponent = "",
+            Interfaces = new List<string>(),
+            Properties = new List<PropertyDTO> { new() { Name = "Speed", Value = 5 } },
+            RemovedCustomProperties = new List<string> { "Health" }
+        }));
+
+        var component = provider.Load(project, "Game.Player");
+        Assert.Equal(5, component.Properties.Single().Value);
+        Assert.True(component.IsRemovedCustomProperty("Game.Player", "Health"));
+        var context = resources.Get<ISaveModel>().GetSaveContext<ComponentSaveContext>(project);
+        context.Components.Add(component);
+        Assert.Same(component, provider.Load(project, "Game.Player"));
+
+        await context.SaveAction(project);
+
+        var saved = JsonNode.Parse(File.ReadAllText(path));
+        Assert.Equal(5, saved["Properties"][0]["Value"].GetValue<int>());
+        Assert.Equal("Health", saved["RemovedCustomProperties"][0].GetValue<string>());
+    }
+
+    [Fact]
+    public async Task RenamedPersistedOverride_IsSavedUnderTheNewName()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        resources.Get<IHookModel>().AddHook<ExtractPropertiesHook>(hook =>
+            hook.Properties.Add(new Property { Name = "Speed", Type = typeof(int), Value = 1 }));
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        project.IsClosing = true;
+        var path = provider.GetPath(project, "Game.Player");
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+        File.WriteAllText(path, JsonSerializer.Serialize(new ComponentDTO
+        {
+            ClassName = "Player",
+            Namespace = "Game",
+            TemplateClass = typeof(LoadableTestTemplate).FullName,
+            BaseInheritedComponent = "",
+            Interfaces = new List<string>(),
+            Properties = new List<PropertyDTO> { new() { Name = "Speed", Value = 5 } }
+        }));
+        var component = provider.Load(project, "Game.Player");
+        component.RenamePersistedPropertyOverride("Speed", "Velocity");
+        component.Properties.Single().Name = "Velocity";
+        component.OveriddenProperties.Single().Name = "Velocity";
+        var context = resources.Get<ISaveModel>().GetSaveContext<ComponentSaveContext>(project);
+        context.Components.Add(component);
+
+        await context.SaveAction(project);
+
+        var saved = JsonNode.Parse(File.ReadAllText(path));
+        Assert.Equal("Velocity", saved["Properties"][0]["Name"].GetValue<string>());
+        Assert.Equal(5, saved["Properties"][0]["Value"].GetValue<int>());
+    }
+
+    [Fact]
+    public void ReaddedCustomProperty_UsesCurrentTypeBeforeReadingSavedValue()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        resources.Get<IHookModel>().AddHook<ExtractPropertiesHook>(hook =>
+            hook.Properties.Add(new Property
+            {
+                Name = "Health", Type = typeof(int), Value = 1, DeclaringTypeName = "Game.Player"
+            }));
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        var path = provider.GetPath(project, "Game.Player");
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+        File.WriteAllText(path, JsonSerializer.Serialize(new ComponentDTO
+        {
+            ClassName = "Player",
+            Namespace = "Game",
+            TemplateClass = typeof(LoadableTestTemplate).FullName,
+            BaseInheritedComponent = "",
+            Interfaces = new List<string>(),
+            Properties = new List<PropertyDTO> { new() { Name = "Health", Value = "ready" } },
+            CustomProperties = new List<CustomPropertyDTO>
+            {
+                new() { Name = "Health", Type = typeof(string).FullName, DefaultValue = "new", Group = "Stats", Access = "Public" }
+            },
+            RemovedCustomProperties = new List<string> { "Health" }
+        }));
+
+        var property = Assert.Single(provider.Load(project, "Game.Player").Properties);
+
+        Assert.Equal(typeof(string), property.Type);
+        Assert.Equal("ready", property.Value);
+        Assert.Equal("Stats", property.Group);
     }
 
     [Fact]
@@ -447,6 +577,18 @@ public class FormatVersionTests
     }
 
     private sealed class TestTemplate : ComponentTemplate<TestCode>
+    {
+        public override void ChildrenFilter(FilterHelper filter) { }
+    }
+
+    public sealed class LoadableTestCode(Component component) : ComponentTypeCode(component)
+    {
+        public override Type TypeOBaseType => typeof(object);
+        protected override void InitClass() { }
+        protected override void InitTypeDClass() { }
+    }
+
+    public sealed class LoadableTestTemplate : ComponentTemplate<LoadableTestCode>
     {
         public override void ChildrenFilter(FilterHelper filter) { }
     }

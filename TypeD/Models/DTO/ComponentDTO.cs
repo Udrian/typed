@@ -1,4 +1,5 @@
 ﻿using TypeD.Models.Data;
+using System.Text.Json.Serialization;
 
 namespace TypeD.Models.DTO
 {
@@ -48,5 +49,8 @@ namespace TypeD.Models.DTO
         /// Gets or sets the list of user defined properties of the <see cref="Component"/>.
         /// </summary>
         public List<CustomPropertyDTO> CustomProperties { get; set; }
+        /// <summary>Gets or sets deleted custom property names, preventing stale compiled properties from reappearing.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<string> RemovedCustomProperties { get; set; }
     }
 }

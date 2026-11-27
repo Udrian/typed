@@ -62,7 +62,7 @@ namespace TypeD.Models.Providers
 
             var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(parentComponent));
             component.Properties = extractPropertiesHook.Properties;
-            AppendCustomProperties(component, null);
+            AppendCustomProperties(component);
 
             component.Template.Init();
             ProjectModel.InitAndSaveCode(project, component.Template.Code);
@@ -130,12 +130,15 @@ namespace TypeD.Models.Providers
 
         private Component LoadFromPath(Project project, string path)
         {
-            Component component = null;
+            var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
+            var pending = componentSaveContext.Components.Find(c => GetPath(project, c) == path);
+            if (pending != null)
+                return pending;
+
+            Component component;
             if (!File.Exists(path))
             {
-                var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
-                component = componentSaveContext.Components.Find(c => GetPath(project, c) == path);
-                if (component == null) return null;
+                return null;
             }
             else
             {
@@ -176,6 +179,8 @@ namespace TypeD.Models.Providers
                         Value = p.Value
                     };
                 }).ToList() ?? new List<Property>(),
+                PersistedPropertyOverrides = dto.Properties?.Select(property => property.Name)
+                    .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal),
                 CustomProperties = dto.CustomProperties?.Select(p => new CustomProperty()
                 {
                     Name = p.Name,
@@ -186,7 +191,8 @@ namespace TypeD.Models.Providers
                     Access = Enum.TryParse<CustomPropertyAccess>(p.Access, true, out var access)
                         ? access
                         : CustomPropertyAccess.Public
-                }).ToList() ?? new List<CustomProperty>()
+                }).ToList() ?? new List<CustomProperty>(),
+                RemovedCustomProperties = dto.RemovedCustomProperties?.ToList() ?? new List<string>()
             };
 
             component.DefinitionChildren = new List<Component>(component.Children);
@@ -197,21 +203,14 @@ namespace TypeD.Models.Providers
 
             var savedProperties = component.Properties;
             var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(component));
-            var defaultProperties = extractPropertiesHook.Properties;
-            component.Properties = defaultProperties.Select((d) =>
+            component.Properties = extractPropertiesHook.Properties;
+            AppendCustomProperties(component);
+            foreach (var property in component.Properties)
             {
-                var newProp = savedProperties.FirstOrDefault(p => p.Name == d.Name);
-                if (newProp != null && newProp.Value is JsonElement)
-                {
-                    var val = ((JsonElement)newProp.Value).Deserialize(GetStoredValueType(d.Type), JSON.CreateOptions(web: true));
-                    if(!Equals(d.Value, newProp.Value))
-                    {
-                        d.Value = val;
-                    }
-                }
-                return d;
-            }).ToList();
-            AppendCustomProperties(component, savedProperties);
+                var saved = savedProperties.FirstOrDefault(p => p.Name == property.Name);
+                if (saved?.Value is JsonElement)
+                    property.Value = DeserializeValue(saved.Value, property.Type);
+            }
             component.OveriddenProperties = component.Properties.Select(property => new Property(property)).ToList();
 
             component.Template.Component = component;
@@ -223,7 +222,7 @@ namespace TypeD.Models.Providers
         /// Adds the custom properties declared by the component and its base components to the property list, until
         /// the generated code has been compiled and they are extracted through reflection like any other property.
         /// </summary>
-        private void AppendCustomProperties(Component component, List<Property> savedProperties)
+        private void AppendCustomProperties(Component component)
         {
             for (var declaring = component; declaring != null; declaring = declaring.BaseInheritedComponent)
             {
@@ -231,11 +230,24 @@ namespace TypeD.Models.Providers
                 {
                     if (customProperty.Access != CustomPropertyAccess.Public)
                         continue;
-                    if (component.Properties.Any(p => p.Name == customProperty.Name))
-                        continue;
                     var type = ResolveType(customProperty.TypeName);
                     if (type == null)
                         continue;
+
+                    var existing = component.Properties.FirstOrDefault(p => p.Name == customProperty.Name);
+                    if (existing != null)
+                    {
+                        if ((existing.DeclaringTypeName ?? existing.FromComponent?.FullName) == declaring.FullName)
+                        {
+                            existing.Description = customProperty.Description;
+                            existing.Group = customProperty.Group;
+                            existing.Type = type;
+                            existing.Value = customProperty.DefaultValue;
+                            existing.FromComponent = declaring;
+                            existing.ReadOnly = false;
+                        }
+                        continue;
+                    }
 
                     var property = new Property()
                     {
@@ -247,9 +259,6 @@ namespace TypeD.Models.Providers
                         Value = customProperty.DefaultValue,
                         FromComponent = declaring
                     };
-                    var saved = savedProperties?.FirstOrDefault(p => p.Name == customProperty.Name);
-                    if (saved != null)
-                        property.Value = DeserializeValue(saved.Value, type);
                     component.Properties.Add(property);
                 }
             }
@@ -376,6 +385,7 @@ namespace TypeD.Models.Providers
                 OveriddenProperties = (useCurrentValuesAsOverrideBaseline ? source.Properties : source.OveriddenProperties)
                     .Select(property => new Property(property)).ToList(),
                 CustomProperties = source.CustomProperties.Select(property => new CustomProperty(property)).ToList(),
+                RemovedCustomProperties = source.RemovedCustomProperties.ToList(),
                 Template = Activator.CreateInstance(source.Template.GetType()) as ComponentTemplate,
                 Removed = source.Removed,
                 Public = source.Public

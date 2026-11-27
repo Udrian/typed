@@ -77,7 +77,8 @@ namespace TypeD.Models.Data.SaveContexts
                         Icon = saveComponent.Icon,
                         Children = saveComponent.Children.Select(CreateChildDTO).ToList(),
                         Properties = saveComponent.Properties
-                            .Where(p => p.Name != "ID" && saveComponent.HasPropertyOverridesFor(p.Name))
+                            .Where(p => p.Name != "ID" && (saveComponent.HasPropertyOverridesFor(p.Name)
+                                || saveComponent.PersistedPropertyOverrides.Contains(p.Name)))
                             .Select(p => new PropertyDTO
                             {
                                 Name = p.Name,
@@ -92,7 +93,9 @@ namespace TypeD.Models.Data.SaveContexts
                                 DefaultValue = p.DefaultValue,
                                 Group = p.Group,
                                 Access = p.Access.ToString()
-                            }).ToList()
+                            }).ToList(),
+                        RemovedCustomProperties = saveComponent.RemovedCustomProperties.Count == 0
+                            ? null : saveComponent.RemovedCustomProperties.ToList()
                     }, ComponentProvider.GetPath(targetProject, saveComponent));
                 }
 
