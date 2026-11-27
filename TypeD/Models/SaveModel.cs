@@ -30,6 +30,24 @@ namespace TypeD.Models
         public bool AnythingToSave { get { return SaveContexts.Any(c => c.Value.ShouldSave); } }
         public event Action<bool> SaveStateChanged;
 
+        public IDisposable BeginExclusiveUpdate()
+        {
+            if (!SaveGate.Wait(0))
+                throw new InvalidOperationException("A save or autosave is in progress. Try again when it finishes.");
+            if (AnythingToSave)
+            {
+                SaveGate.Release();
+                throw new InvalidOperationException("Save the project before changing component identity.");
+            }
+            return new SaveGateLease(SaveGate);
+        }
+
+        private sealed class SaveGateLease(SemaphoreSlim gate) : IDisposable
+        {
+            private SemaphoreSlim Gate = gate;
+            public void Dispose() => Interlocked.Exchange(ref Gate, null)?.Release();
+        }
+
         private void NotifySaveStateChanged()
         {
             UINotifyModel.Notify("AnythingToSave");
@@ -56,13 +74,20 @@ namespace TypeD.Models
 
         public async void SaveNow<T>(Project project, object param = null) where T : SaveContext, new()
         {
-            var context = GetSaveContext<T>(param);
-
-            SaveContexts.Remove(context.GetType());
-            await context.SaveAction(project);
-            if (project != null)
-                ProjectSaveState.Record(project);
-            NotifySaveStateChanged();
+            await SaveGate.WaitAsync();
+            try
+            {
+                var context = GetSaveContext<T>(param);
+                SaveContexts.Remove(context.GetType());
+                await context.SaveAction(project);
+                if (project != null)
+                    ProjectSaveState.Record(project);
+                NotifySaveStateChanged();
+            }
+            finally
+            {
+                SaveGate.Release();
+            }
         }
 
         public bool SaveContextExists<T>() where T : SaveContext, new()

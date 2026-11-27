@@ -16,9 +16,9 @@ namespace TypeD.Models.Interfaces
         Task<string> SelectContentAsync(Project project, IEnumerable<string> extensions);
         /// <summary>Returns a new component name, or null on cancellation.</summary>
         Task<string> RenameComponentAsync(Component component);
-        /// <summary>Collects values for a component derived from the specified base component.</summary>
+        /// <summary>Collects values for a component, using the specified base or a remembered default when it is null.</summary>
         Task<ComponentCreationOptions> CreateComponentAsync(Project project, string componentNamespace, Component baseComponent);
         /// <summary>Collects a custom property definition and its runtime value type.</summary>
-        Task<(CustomProperty Property, Type Type)?> AddCustomPropertyAsync(IEnumerable<IPropertyDefinition> definitions, IEnumerable<string> takenNames);
+        Task<(CustomProperty Property, Type Type, bool RememberFields)?> AddCustomPropertyAsync(IEnumerable<IPropertyDefinition> definitions, IEnumerable<string> takenNames);
     }
 }

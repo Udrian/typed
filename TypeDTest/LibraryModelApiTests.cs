@@ -208,6 +208,9 @@ public class LibraryModelApiTests
         var snapshot = Assert.IsType<ComponentChildDTO>(snapshotField.GetValue(clipboard));
         Assert.Equal(source.FullName, snapshot.FullName);
         Assert.Equal("original", Assert.IsType<JsonElement>(snapshot.Properties.Single().Value).GetString());
+        text = text.Replace("\"Children\":", "\"PreservedProperties\":[null],\"Children\":");
+        await Assert.ThrowsAsync<InvalidDataException>(() => clipboard.RefreshAsync());
+        Assert.Null(snapshotField.GetValue(clipboard));
         text = "Content copied in another application";
         await clipboard.RefreshAsync();
         Assert.Null(snapshotField.GetValue(clipboard));

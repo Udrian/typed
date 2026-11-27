@@ -12,6 +12,10 @@ namespace TypeD.Models.Interfaces
         void NotifyAutosaveCompleted(Project project);
         /// <summary>Gets a value indicating whether there are pending saves.</summary>
         public bool AnythingToSave { get; }
+        /// <summary>Excludes saves and autosaves while applying an immediate file transaction.</summary>
+        /// <returns>A lease that releases the save gate when disposed.</returns>
+        /// <exception cref="InvalidOperationException">A save is in progress or there are unsaved changes.</exception>
+        IDisposable BeginExclusiveUpdate();
         /// <summary>Queues a save context to be saved later.</summary>
         /// <typeparam name="T">The save context type.</typeparam>
         /// <param name="param">The context parameter.</param>

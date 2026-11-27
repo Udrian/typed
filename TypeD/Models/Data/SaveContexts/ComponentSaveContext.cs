@@ -64,39 +64,7 @@ namespace TypeD.Models.Data.SaveContexts
             return Task.Run(() => {
                 foreach (var saveComponent in Components)
                 {
-
-                    JSON.Serialize(new ComponentDTO()
-                    {
-                        FormatVersions = FormatVersionModel.GetCurrentVersions(FormatDocumentKind.Component, saveComponent.FormatVersions),
-                        ExtensionData = saveComponent.ExtensionData,
-                        ClassName = saveComponent.ClassName,
-                        Interfaces = saveComponent.Interfaces.Select(i => i.FullName).ToList(),
-                        Namespace = saveComponent.Namespace,
-                        BaseInheritedComponent = saveComponent.BaseInheritedComponent?.FullName ?? "",
-                        TemplateClass = saveComponent.Template.GetType().FullName,
-                        Icon = saveComponent.Icon,
-                        Children = saveComponent.Children.Select(CreateChildDTO).ToList(),
-                        Properties = saveComponent.Properties
-                            .Where(p => p.Name != "ID" && (saveComponent.HasPropertyOverridesFor(p.Name)
-                                || saveComponent.PersistedPropertyOverrides.Contains(p.Name)))
-                            .Select(p => new PropertyDTO
-                            {
-                                Name = p.Name,
-                                Value = p.Value
-                            }).ToList(),
-                        CustomProperties = saveComponent.CustomProperties
-                            .Select(p => new CustomPropertyDTO
-                            {
-                                Name = p.Name,
-                                Description = p.Description,
-                                Type = p.TypeName,
-                                DefaultValue = p.DefaultValue,
-                                Group = p.Group,
-                                Access = p.Access.ToString()
-                            }).ToList(),
-                        RemovedCustomProperties = saveComponent.RemovedCustomProperties.Count == 0
-                            ? null : saveComponent.RemovedCustomProperties.ToList()
-                    }, ComponentProvider.GetPath(targetProject, saveComponent));
+                    JSON.Serialize(CreateDocument(saveComponent), ComponentProvider.GetPath(targetProject, saveComponent));
                 }
 
                 foreach (var deletedComponent in DeletedComponents)
@@ -147,8 +115,50 @@ namespace TypeD.Models.Data.SaveContexts
             });
         }
 
+        /// <summary>Creates the persisted representation of a component without writing a file.</summary>
+        /// <param name="component">The component to serialize.</param>
+        /// <returns>The component document.</returns>
+        public ComponentDTO CreateDocument(Component component)
+        {
+            ArgumentNullException.ThrowIfNull(component);
+            component.ValidateUnresolvedPropertyOverrides();
+            return new ComponentDTO
+            {
+                FormatVersions = FormatVersionModel.GetCurrentVersions(FormatDocumentKind.Component, component.FormatVersions),
+                ExtensionData = component.ExtensionData,
+                ClassName = component.ClassName,
+                Interfaces = component.Interfaces.Select(i => i.FullName).ToList(),
+                Namespace = component.Namespace,
+                BaseInheritedComponent = component.BaseInheritedComponent?.FullName ?? "",
+                TemplateClass = component.Template.GetType().FullName,
+                Icon = component.Icon,
+                Children = component.Children.Select(CreateChildDTO).ToList(),
+                Properties = component.Properties
+                    .Where(p => p.Name != "ID" && (component.HasPropertyOverridesFor(p.Name)
+                        || component.PersistedPropertyOverrides.Contains(p.Name)))
+                    .Select(p => new PropertyDTO { Name = p.Name, Value = p.Value })
+                    .Concat(component.UnresolvedPropertyOverrides.Where(saved =>
+                        component.Properties.All(property => property.Name != saved.Name))).ToList(),
+                PreservedProperties = component.PreservedPropertyOverrides.Count == 0
+                    ? null : component.PreservedPropertyOverrides.ToList(),
+                CustomProperties = component.CustomProperties
+                    .Select(p => new CustomPropertyDTO
+                    {
+                        Name = p.Name,
+                        Description = p.Description,
+                        Type = p.TypeName,
+                        DefaultValue = p.DefaultValue,
+                        Group = p.Group,
+                        Access = p.Access.ToString()
+                    }).ToList(),
+                RemovedCustomProperties = component.RemovedCustomProperties.Count == 0
+                    ? null : component.RemovedCustomProperties.ToList()
+            };
+        }
+
         private ComponentChildDTO CreateChildDTO(Component component)
         {
+            component.ValidateUnresolvedPropertyOverrides();
             return new ComponentChildDTO
             {
                 ID = component.ID,
@@ -162,7 +172,10 @@ namespace TypeD.Models.Data.SaveContexts
                     {
                         Name = p.Name,
                         Value = p.Value
-                    }).ToList(),
+                    }).Concat(component.UnresolvedPropertyOverrides.Where(saved =>
+                        component.Properties.All(property => property.Name != saved.Name))).ToList(),
+                PreservedProperties = component.PreservedPropertyOverrides.Count == 0
+                    ? null : component.PreservedPropertyOverrides.ToList(),
                 Children = component.Children
                     .Where(child => !component.DefinitionChildren.Contains(child) || child.HasChanges)
                     .Select(CreateChildDTO)

@@ -45,6 +45,9 @@ namespace TypeD.Models.DTO
         /// Gets or sets the list of properties associated with the <see cref="Component"/>.
         /// </summary>
         public List<PropertyDTO> Properties { get; set; }
+        /// <summary>Gets or sets incompatible values retained for manual repair.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<PreservedPropertyDTO> PreservedProperties { get; set; }
         /// <summary>
         /// Gets or sets the list of user defined properties of the <see cref="Component"/>.
         /// </summary>

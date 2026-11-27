@@ -25,6 +25,9 @@ namespace TypeD.Models.Providers.Interfaces
         /// <returns>A <see cref="ComponentTemplate"/> representing the newly created component template.</returns>
         public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null, string icon = null);
 
+        /// <summary>Creates a component with custom properties present during initialization.</summary>
+        public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces, string icon, List<CustomProperty> customProperties);
+
         /// <summary>
         /// Saves the specified component.
         /// </summary>

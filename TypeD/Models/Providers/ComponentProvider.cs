@@ -49,6 +49,9 @@ namespace TypeD.Models.Providers
 
         // Functions
         public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces = null, string icon = null)
+            => Create(project, className, @namespace, parentComponent, interfaces, icon, null);
+
+        public ComponentTemplate Create(Project project, string className, string @namespace, Component parentComponent, List<string> interfaces, string icon, List<CustomProperty> customProperties)
         {
             var component = TranslateComponentDTO(project, new ComponentDTO()
             {
@@ -60,9 +63,13 @@ namespace TypeD.Models.Providers
                 TemplateClass = parentComponent.Template.GetType().FullName
             });
 
+            if (customProperties != null)
+                component.CustomProperties.AddRange(customProperties);
             var extractPropertiesHook = HookModel.Shoot(new ExtractPropertiesHook(parentComponent));
             component.Properties = extractPropertiesHook.Properties;
             AppendCustomProperties(component);
+            foreach (var property in component.Properties.Where(property => ReferenceEquals(property.FromComponent, component)))
+                component.OveriddenProperties.Add(new Property(property));
 
             component.Template.Init();
             ProjectModel.InitAndSaveCode(project, component.Template.Code);
@@ -89,6 +96,7 @@ namespace TypeD.Models.Providers
 
         public ComponentChildDTO CaptureNode(Component component)
         {
+            component.ValidateUnresolvedPropertyOverrides();
             return new ComponentChildDTO
             {
                 ID = component.ID,
@@ -99,7 +107,11 @@ namespace TypeD.Models.Providers
                 {
                     Name = property.Name,
                     Value = JsonSerializer.SerializeToElement(property.Value, GetStoredValueType(property.Type), JSON.CreateOptions())
-                }).ToList(),
+                }).Concat(component.UnresolvedPropertyOverrides.Where(saved =>
+                    saved.Name != "ID" && component.Properties.All(property => property.Name != saved.Name))
+                    .Select(saved => new PropertyDTO { Name = saved.Name, Value = saved.Value })).ToList(),
+                PreservedProperties = component.PreservedPropertyOverrides.Count == 0
+                    ? null : component.PreservedPropertyOverrides.Select(CopyPreservedProperty).ToList(),
                 Children = component.Children.Select(CaptureNode).ToList(),
                 ChildOrder = component.Children.Select(child => child.ID).ToList()
             };
@@ -181,6 +193,8 @@ namespace TypeD.Models.Providers
                 }).ToList() ?? new List<Property>(),
                 PersistedPropertyOverrides = dto.Properties?.Select(property => property.Name)
                     .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal),
+                PreservedPropertyOverrides = dto.PreservedProperties?.Select(CopyPreservedProperty).ToList()
+                    ?? new List<PreservedPropertyDTO>(),
                 CustomProperties = dto.CustomProperties?.Select(p => new CustomProperty()
                 {
                     Name = p.Name,
@@ -211,6 +225,9 @@ namespace TypeD.Models.Providers
                 if (saved?.Value is JsonElement)
                     property.Value = DeserializeValue(saved.Value, property.Type);
             }
+            component.UnresolvedPropertyOverrides = savedProperties
+                .Where(saved => component.Properties.All(property => property.Name != saved.Name))
+                .Select(saved => new PropertyDTO { Name = saved.Name, Value = saved.Value }).ToList();
             component.OveriddenProperties = component.Properties.Select(property => new Property(property)).ToList();
 
             component.Template.Component = component;
@@ -323,6 +340,11 @@ namespace TypeD.Models.Providers
                 }
                 return property;
             }).ToList();
+            child.UnresolvedPropertyOverrides = propertyOverrides
+                .Where(saved => child.Properties.All(property => property.Name != saved.Name))
+                .Select(saved => new PropertyDTO { Name = saved.Name, Value = saved.Value }).ToList();
+            if (dto.PreservedProperties != null)
+                child.PreservedPropertyOverrides = dto.PreservedProperties.Select(CopyPreservedProperty).ToList();
 
             if (dto.Children != null)
             {
@@ -386,6 +408,9 @@ namespace TypeD.Models.Providers
                     .Select(property => new Property(property)).ToList(),
                 CustomProperties = source.CustomProperties.Select(property => new CustomProperty(property)).ToList(),
                 RemovedCustomProperties = source.RemovedCustomProperties.ToList(),
+                UnresolvedPropertyOverrides = source.UnresolvedPropertyOverrides
+                    .Select(property => new PropertyDTO { Name = property.Name, Value = property.Value }).ToList(),
+                PreservedPropertyOverrides = source.PreservedPropertyOverrides.Select(CopyPreservedProperty).ToList(),
                 Template = Activator.CreateInstance(source.Template.GetType()) as ComponentTemplate,
                 Removed = source.Removed,
                 Public = source.Public
@@ -414,6 +439,14 @@ namespace TypeD.Models.Providers
             ProjectModel.InitCode(project, clone.Template.Code);
             return clone;
         }
+
+        private static PreservedPropertyDTO CopyPreservedProperty(PreservedPropertyDTO property) => new()
+        {
+            Name = property.Name,
+            TypeName = property.TypeName,
+            DeclaringTypeName = property.DeclaringTypeName,
+            Value = JsonSerializer.SerializeToElement(property.Value, JSON.CreateOptions())
+        };
 
         public void Delete(Project project, Component component)
         {
@@ -506,7 +539,6 @@ namespace TypeD.Models.Providers
                 var files = Directory.GetFiles(path, $"*.{ComponentFileEnding}", SearchOption.AllDirectories);
                 components = files.Select((f) => { return LoadFromPath(project, f); }).ToList();
             }
-
             var componentSaveContext = SaveModel.GetSaveContext<ComponentSaveContext>(project);
             
             var retList = componentSaveContext.Components.Union(components)

@@ -17,5 +17,11 @@ namespace TypeD.Models.Data
         public bool Updatable { get; set; }
         /// <summary>Gets or sets whether the component supports drawing.</summary>
         public bool Drawable { get; set; }
+        /// <summary>Gets or sets whether to remember the creation fields.</summary>
+        public bool RememberFields { get; set; }
+        /// <summary>Gets or sets the custom properties to declare on the new component.</summary>
+        public List<CustomProperty> CustomProperties { get; set; } = new();
+        /// <summary>Gets or sets the last added property's preference, to save only after creation succeeds.</summary>
+        public (CustomProperty Property, Type Type, bool RememberFields)? PropertyPreference { get; set; }
     }
 }

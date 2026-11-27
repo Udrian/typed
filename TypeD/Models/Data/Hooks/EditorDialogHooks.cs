@@ -7,7 +7,7 @@ namespace TypeD.Models.Data.Hooks
         public Project Project { get; set; }
         /// <summary>Gets or sets the suggested component namespace.</summary>
         public string ComponentNamespace { get; set; }
-        /// <summary>Gets or sets the component type the dialog should create.</summary>
+        /// <summary>Gets or sets the initial base, or null to allow the dialog to restore a remembered root.</summary>
         public Component BaseComponent { get; set; }
         /// <summary>Gets or sets the asynchronous dialog result supplied by a module.</summary>
         public Task<ComponentCreationOptions> Result { get; set; }
@@ -21,6 +21,6 @@ namespace TypeD.Models.Data.Hooks
         /// <summary>Gets or sets property names that are already in use.</summary>
         public IEnumerable<string> TakenNames { get; set; }
         /// <summary>Gets or sets the asynchronous dialog result supplied by a module.</summary>
-        public Task<(CustomProperty Property, Type Type)?> Result { get; set; }
+        public Task<(CustomProperty Property, Type Type, bool RememberFields)?> Result { get; set; }
     }
 }

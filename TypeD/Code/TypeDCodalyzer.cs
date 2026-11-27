@@ -74,6 +74,14 @@ namespace TypeD.Code
             WriteFile();
         }
 
+        /// <summary>Generates the editor-owned source file without writing it.</summary>
+        /// <returns>The generated file path and content.</returns>
+        public (string Path, string Content) GenerateTypeDFile()
+        {
+            Generate();
+            return (FilePathTypeD(), TypeDFile.Output.ToString());
+        }
+
         /// <summary>
         /// Saves the current state of the object to a file.
         /// </summary>

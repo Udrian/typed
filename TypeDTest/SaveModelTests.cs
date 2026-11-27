@@ -9,6 +9,69 @@ namespace TypeDTest;
 public class SaveModelTests
 {
     [Fact]
+    public async Task ExclusiveUpdate_RejectsPendingChangesAndBlocksSaves()
+    {
+        var model = InitializeResources().Get<ISaveModel>();
+        model.GetSaveContext<FirstContext>().Save = () => { };
+        model.AddSave<FirstContext>();
+        Assert.Throws<InvalidOperationException>(() => model.BeginExclusiveUpdate());
+        await model.Save(null);
+
+        var lease = model.BeginExclusiveUpdate();
+        Assert.Throws<InvalidOperationException>(() => model.BeginExclusiveUpdate());
+        var save = model.Save(null);
+        Assert.False(save.IsCompleted);
+        lease.Dispose();
+        lease.Dispose();
+        await save;
+        using var next = model.BeginExclusiveUpdate();
+    }
+
+    [Fact]
+    public async Task ExclusiveUpdate_BlocksImmediateSaves()
+    {
+        var model = InitializeResources().Get<ISaveModel>();
+        var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        model.GetSaveContext<FirstContext>().Save = () => completed.SetResult(true);
+        using (model.BeginExclusiveUpdate())
+        {
+            model.SaveNow<FirstContext>(null);
+            Assert.False(completed.Task.IsCompleted);
+        }
+        await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task ExclusiveUpdate_BlocksAutosaveUntilReleased()
+    {
+        var model = InitializeResources().Get<ISaveModel>();
+        var temporaryRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var projectPath = Path.Combine(temporaryRoot, "project");
+        var snapshotPath = Path.Combine(temporaryRoot, "snapshot");
+        Directory.CreateDirectory(projectPath);
+        File.WriteAllText(Path.Combine(projectPath, "saved.txt"), "saved");
+        var constructor = typeof(Project).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic).Single();
+        var projectData = JsonSerializer.Deserialize(
+            """{"ProjectName":"Game","CSSolutionPath":"Game.sln","CSProjName":"Game"}""",
+            constructor.GetParameters()[1].ParameterType);
+        var project = (Project)constructor.Invoke(new[] { projectPath, projectData });
+        try
+        {
+            var lease = model.BeginExclusiveUpdate();
+            var autosave = model.CreateAutosave(project, snapshotPath);
+            Assert.False(autosave.IsCompleted);
+            Assert.False(Directory.Exists(snapshotPath));
+            lease.Dispose();
+            await autosave;
+            Assert.Equal("saved", File.ReadAllText(Path.Combine(snapshotPath, "saved.txt")));
+        }
+        finally
+        {
+            Directory.Delete(temporaryRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Save_ProcessesContextsAddedBySaveCallbacks()
     {
         var resources = InitializeResources();

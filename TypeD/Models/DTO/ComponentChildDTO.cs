@@ -1,4 +1,6 @@
-﻿namespace TypeD.Models.DTO
+﻿using System.Text.Json.Serialization;
+
+namespace TypeD.Models.DTO
 {
     /// <summary>
     /// Represents a Component child together with it's overridden properties and added children.
@@ -18,6 +20,9 @@
         /// Gets or sets the collection of overridden properties associated with the child component.
         /// </summary>
         public List<PropertyDTO> Properties { get; set; }
+        /// <summary>Gets or sets incompatible values retained for manual repair.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<PreservedPropertyDTO> PreservedProperties { get; set; }
         /// <summary>
         /// Gets or sets child instances added to this component instance.
         /// </summary>

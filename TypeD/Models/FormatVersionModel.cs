@@ -17,8 +17,11 @@ namespace TypeD.Models
         public FormatVersionModel()
         {
             foreach (var kind in Enum.GetValues<FormatDocumentKind>())
-                Register("TypeD", new FormatVersionDefinition(kind, 1,
-                    new Dictionary<int, Action<JsonObject>> { [0] = _ => { } }));
+                Register("TypeD", kind == FormatDocumentKind.Component
+                    ? new FormatVersionDefinition(kind, 2,
+                        new Dictionary<int, Action<JsonObject>> { [0] = _ => { }, [1] = _ => { } })
+                    : new FormatVersionDefinition(kind, 1,
+                        new Dictionary<int, Action<JsonObject>> { [0] = _ => { } }));
         }
 
         public void Init(IResourceModel resourceModel)

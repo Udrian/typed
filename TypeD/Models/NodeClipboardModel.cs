@@ -67,7 +67,8 @@ namespace TypeD.Models
         private static void Validate(ComponentChildDTO node)
         {
             if (string.IsNullOrWhiteSpace(node.FullName) || node.Properties == null || node.Children == null ||
-                node.Properties.Any(property => property == null || string.IsNullOrWhiteSpace(property.Name)))
+                node.Properties.Any(property => property == null || string.IsNullOrWhiteSpace(property.Name)) ||
+                node.PreservedProperties?.Any(property => property == null || string.IsNullOrWhiteSpace(property.Name)) == true)
                 throw new InvalidDataException("The node clipboard contains an invalid node.");
             foreach (var child in node.Children)
             {

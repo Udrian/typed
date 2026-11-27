@@ -1,4 +1,7 @@
-﻿using TypeD.Components;
+﻿using Avalonia.Controls;
+using Avalonia.Media;
+using TypeD.Components;
+using TypeD.Models.Interfaces;
 
 namespace TypeD.Models.Data
 {
@@ -10,9 +13,84 @@ namespace TypeD.Models.Data
     /// hierarchical and compositional relationships between components.</remarks>
     public class Component
     {
+        /// <summary>Creates and initializes a fresh template of the current type for this component.</summary>
+        public ComponentTemplate CreateInitializedTemplate(Project project, IProjectModel projectModel)
+        {
+            ArgumentNullException.ThrowIfNull(project);
+            ArgumentNullException.ThrowIfNull(projectModel);
+            var type = Template?.GetType() ?? throw new InvalidOperationException("The component has no template.");
+            var template = Activator.CreateInstance(type) as ComponentTemplate
+                ?? throw new InvalidOperationException($"Could not create component template '{type.FullName}'.");
+            template.Component = this;
+            template.Init();
+            projectModel.InitCode(project, template.Code);
+            return template;
+        }
+
+        /// <summary>Creates a tooltip describing this component and its custom properties.</summary>
+        /// <param name="resolveBase">Optionally resolves each inherited component to its current definition.</param>
+        /// <returns>A scrollable tooltip with component and property information.</returns>
+        public Control CreateToolTip(Func<Component, Component> resolveBase = null)
+        {
+            var panel = Content.CreateToolTipPanel();
+            var inherited = new List<Component>();
+            for (var parent = BaseInheritedComponent; parent != null;)
+            {
+                var current = resolveBase == null ? parent : resolveBase(parent);
+                inherited.Add(current);
+                parent = current.BaseInheritedComponent;
+            }
+            Content.AddToolTipRows(panel, new[]
+            {
+                new KeyValuePair<string, string>("Component", FullName),
+                new KeyValuePair<string, string>("Base type", inherited.FirstOrDefault()?.FullName ?? "None"),
+                new KeyValuePair<string, string>("Root type", (inherited.LastOrDefault() ?? this).FullName)
+            });
+
+            var properties = new List<KeyValuePair<string, string>>();
+            foreach (var declaring in new[] { this }.Concat(inherited))
+            {
+                var isInherited = !ReferenceEquals(declaring, this);
+                foreach (var property in declaring.CustomProperties)
+                {
+                    if (isInherited && property.Access == CustomPropertyAccess.Private)
+                        continue;
+                    var details = $"{property.Access.ToString().ToLowerInvariant()} {property.TypeName} - {property.Group}";
+                    if (isInherited)
+                        details += $"\nInherited from {declaring.FullName}";
+                    if (!string.IsNullOrWhiteSpace(property.Description))
+                        details += $"\n{property.Description}";
+                    properties.Add(new KeyValuePair<string, string>(property.Name, details));
+                }
+            }
+
+            panel.Children.Add(new TextBlock { Text = "Custom properties", FontWeight = FontWeight.SemiBold });
+            if (properties.Count == 0)
+                properties.Add(new KeyValuePair<string, string>("", "None"));
+            Content.AddToolTipRows(panel, properties);
+            return new ScrollViewer
+            {
+                Content = panel,
+                MaxWidth = 420,
+                MaxHeight = 400,
+                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+            };
+        }
+
         internal Dictionary<string, int> FormatVersions { get; set; } = new();
         internal Dictionary<string, System.Text.Json.JsonElement> ExtensionData { get; set; } = new();
         internal HashSet<string> PersistedPropertyOverrides { get; set; } = new(StringComparer.Ordinal);
+        internal List<TypeD.Models.DTO.PropertyDTO> UnresolvedPropertyOverrides { get; set; } = new();
+        internal List<TypeD.Models.DTO.PreservedPropertyDTO> PreservedPropertyOverrides { get; set; } = new();
+
+        internal void ValidateUnresolvedPropertyOverrides()
+        {
+            var conflict = UnresolvedPropertyOverrides.FirstOrDefault(saved =>
+                Properties.Any(property => property.Name == saved.Name));
+            if (conflict != null)
+                throw new InvalidOperationException(
+                    $"The unresolved override '{conflict.Name}' on '{FullName}' conflicts with a current property and must be resolved.");
+        }
 
         /// <summary>Gets whether the component has a saved root-level override for a property.</summary>
         public bool HasPersistedPropertyOverride(string name) => PersistedPropertyOverrides.Contains(name);
@@ -125,6 +203,14 @@ namespace TypeD.Models.Data
         public bool IsBasedOn(Type type)
         {
             return type != null && RootBaseComponent.FullName == type.FullName;
+        }
+        /// <summary>Gets whether this component or an inherited base component declares the interface.</summary>
+        public bool HasInterface(Type type)
+        {
+            for (var component = this; component != null; component = component.BaseInheritedComponent)
+                if (component.Interfaces.Contains(type))
+                    return true;
+            return false;
         }
         /// <summary>
         /// Gets or sets the collection of child components associated with this component.
@@ -257,7 +343,8 @@ namespace TypeD.Models.Data
         {
             get
             {
-                return Properties.Any(property => HasPropertyOverridesFor(property.Name));
+                return UnresolvedPropertyOverrides.Count != 0 || PreservedPropertyOverrides.Count != 0 ||
+                    Properties.Any(property => HasPropertyOverridesFor(property.Name));
             }
         }
 

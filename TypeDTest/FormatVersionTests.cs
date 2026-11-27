@@ -33,7 +33,7 @@ public class FormatVersionTests
         var upgraded = versions.Upgrade(original, kind);
 
         Assert.False(original.ContainsKey("FormatVersions"));
-        Assert.Equal(1, upgraded["FormatVersions"]["TypeD"].GetValue<int>());
+        Assert.Equal(kind == FormatDocumentKind.Component ? 2 : 1, upgraded["FormatVersions"]["TypeD"].GetValue<int>());
         Assert.Equal(42, upgraded["Nested"]["Value"].GetValue<int>());
         Assert.True(JsonNode.DeepEquals(upgraded, versions.Upgrade(upgraded, kind)));
     }
@@ -89,13 +89,24 @@ public class FormatVersionTests
         Assert.Equal(1, projectJson["FormatVersions"]["Example"].GetValue<int>());
     }
 
+    [Fact]
+    public void ComponentVersionOneUpgradePreservesNestedValues()
+    {
+        var input = JsonNode.Parse(
+            """{"FormatVersions":{"TypeD":1},"Children":[{"FullName":"Game.Child","Properties":[{"Name":"Value","Value":42}]}]}""").AsObject();
+        var upgraded = CreateModel().Upgrade(input, FormatDocumentKind.Component);
+        Assert.Equal(2, upgraded["FormatVersions"]["TypeD"].GetValue<int>());
+        Assert.Equal(42, upgraded["Children"][0]["Properties"][0]["Value"].GetValue<int>());
+        Assert.Equal(1, input["FormatVersions"]["TypeD"].GetValue<int>());
+    }
+
     [Theory]
     [InlineData("""{"FormatVersions":null}""")]
     [InlineData("""{"FormatVersions":1}""")]
     [InlineData("""{"FormatVersions":{"TypeD":-1}}""")]
     [InlineData("""{"FormatVersions":{"TypeD":"1"}}""")]
     [InlineData("""{"FormatVersions":{"TypeD":1.5}}""")]
-    [InlineData("""{"FormatVersions":{"TypeD":2}}""")]
+    [InlineData("""{"FormatVersions":{"TypeD":3}}""")]
     [InlineData("""{"FormatVersions":{"MissingModule":1}}""")]
     public void InvalidOrUnsupportedVersionsAreRejected(string json)
     {
@@ -161,7 +172,7 @@ public class FormatVersionTests
 
         var dto = versions.Read<ComponentDTO>(path, FormatDocumentKind.Component);
 
-        Assert.Equal(1, dto.FormatVersions["TypeD"]);
+        Assert.Equal(2, dto.FormatVersions["TypeD"]);
         Assert.Equal(42, dto.ExtensionData["ModuleData"].GetProperty("Value").GetInt32());
         var backup = Assert.Single(Directory.GetFiles(directory.Path, "*.bak"));
         Assert.Equal(original, File.ReadAllText(backup));
@@ -350,7 +361,7 @@ public class FormatVersionTests
         await save.SaveAction(project);
 
         var saved = JsonNode.Parse(File.ReadAllText(provider.GetPath(project, component)));
-        Assert.Equal(1, saved["FormatVersions"]["TypeD"].GetValue<int>());
+        Assert.Equal(2, saved["FormatVersions"]["TypeD"].GetValue<int>());
         Assert.Equal(42, saved["ModuleData"]["Value"].GetValue<int>());
         Assert.Equal("Player", saved["ClassName"].GetValue<string>());
         Assert.Equal("Health", saved["RemovedCustomProperties"][0].GetValue<string>());
@@ -400,6 +411,455 @@ public class FormatVersionTests
     }
 
     [Fact]
+    public async Task UnresolvedOverrides_SurviveSaveAndBecomeUsableWhenPropertiesReturn()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        var propertiesAvailable = false;
+        resources.Get<IHookModel>().AddHook<ExtractPropertiesHook>(hook =>
+        {
+            if (propertiesAvailable)
+                hook.Properties.Add(new Property { Name = "Former", Type = typeof(int), Value = 1 });
+        });
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        project.IsClosing = true;
+        var childPath = provider.GetPath(project, "Game.Child");
+        var rootPath = provider.GetPath(project, "Game.Root");
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(rootPath));
+        File.WriteAllText(childPath, JsonSerializer.Serialize(new ComponentDTO
+        {
+            ClassName = "Child", Namespace = "Game", TemplateClass = typeof(LoadableTestTemplate).FullName,
+            BaseInheritedComponent = "", Interfaces = new List<string>()
+        }));
+        File.WriteAllText(rootPath, JsonSerializer.Serialize(new ComponentDTO
+        {
+            ClassName = "Root", Namespace = "Game", TemplateClass = typeof(LoadableTestTemplate).FullName,
+            BaseInheritedComponent = "", Interfaces = new List<string>(),
+            Properties = new List<PropertyDTO> { new() { Name = "Former", Value = 42 } },
+            Children = new List<ComponentChildDTO>
+            {
+                new() { FullName = "Game.Child", Properties = new List<PropertyDTO> { new() { Name = "Former", Value = 99 } } }
+            }
+        }));
+
+        var root = provider.Load(project, "Game.Root");
+        Assert.Empty(root.Properties);
+        Assert.True(Assert.Single(root.Children).HasChanges);
+        Assert.Equal(99, Assert.IsType<JsonElement>(
+            Assert.Single(provider.CaptureNode(root.Children[0]).Properties).Value).GetInt32());
+        var context = resources.Get<ISaveModel>().GetSaveContext<ComponentSaveContext>(project);
+        context.Components.Add(root);
+        root.Properties.Add(new Property { Name = "Former", Type = typeof(int), Value = 3 });
+        var collision = await Assert.ThrowsAsync<InvalidOperationException>(() => context.SaveAction(project));
+        Assert.Contains("Former", collision.Message);
+        root.Properties.Clear();
+        await context.SaveAction(project);
+        var saved = JsonNode.Parse(File.ReadAllText(rootPath));
+        Assert.Equal(42, saved["Properties"][0]["Value"].GetValue<int>());
+        Assert.Equal(99, saved["Children"][0]["Properties"][0]["Value"].GetValue<int>());
+
+        context.Components.Clear();
+        propertiesAvailable = true;
+        var reloaded = provider.Load(project, "Game.Root");
+        Assert.Equal(42, Assert.Single(reloaded.Properties).Value);
+        Assert.Equal(99, Assert.Single(Assert.Single(reloaded.Children).Properties).Value);
+    }
+
+    [Fact]
+    public async Task ComponentCustomPropertyBatch_PreservesRemovedAndIncompatibleValuesAndSwapsNames()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        project.IsClosing = true;
+        Component Actor(int first)
+        {
+            var actor = new Component
+            {
+                Namespace = "Game", ClassName = "Actor", Template = new LoadableTestTemplate()
+            };
+            foreach (var name in new[] { "First", "Second", "Removed", "Changed" })
+            {
+                actor.CustomProperties.Add(new CustomProperty { Name = name, TypeName = typeof(int).FullName, DefaultValue = 1 });
+                actor.Properties.Add(new Property
+                {
+                    Name = name, Type = typeof(int), Value = name == "First" ? first : 8,
+                    DeclaringTypeName = actor.FullName, FromComponent = actor
+                });
+                actor.OveriddenProperties.Add(new Property(actor.Properties.Last()) { Value = 1 });
+            }
+            return actor;
+        }
+        var definition = Actor(5);
+        var instance = Actor(7);
+        var owner = new Component { Namespace = "Game", ClassName = "Owner", Template = new LoadableTestTemplate() };
+        owner.Children.Add(instance);
+        var desired = new (string, CustomProperty, Type)[]
+        {
+            ("First", new CustomProperty { Name = "Second", TypeName = typeof(int).FullName, DefaultValue = 1 }, typeof(int)),
+            ("Second", new CustomProperty { Name = "First", TypeName = typeof(int).FullName, DefaultValue = 1 }, typeof(int)),
+            ("Changed", new CustomProperty { Name = "Changed", TypeName = typeof(string).FullName, DefaultValue = "new" }, typeof(string))
+        };
+        var plan = new ComponentCustomPropertyPlan(new[] { definition, owner }, definition.FullName, desired,
+            resources.Get<IPropertyModel>());
+        Assert.Equal(4, plan.PreservedValues.Count);
+        plan.Apply();
+        Assert.Equal(5, definition.Properties.Single(item => item.Name == "Second").Value);
+        Assert.Equal(8, definition.Properties.Single(item => item.Name == "First").Value);
+        Assert.Equal("new", definition.Properties.Single(item => item.Name == "Changed").Value);
+        Assert.DoesNotContain(definition.Properties, item => item.Name == "Removed");
+        var save = new ComponentSaveContext();
+        save.Init(resources, project);
+        save.Components.AddRange(new[] { definition, owner });
+        await save.SaveAction(project);
+        var saved = JsonNode.Parse(File.ReadAllText(provider.GetPath(project, owner)));
+        var archived = saved["Children"][0]["PreservedProperties"].AsArray();
+        Assert.Equal(8, archived.Single(item => item["Name"].GetValue<string>() == "Removed")["Value"].GetValue<int>());
+        Assert.Equal(8, archived.Single(item => item["Name"].GetValue<string>() == "Changed")["Value"].GetValue<int>());
+        var reloaded = provider.Load(project, owner.FullName);
+        var reloadedChild = Assert.Single(reloaded.Children);
+        Assert.Equal(7, reloadedChild.Properties.Single(item => item.Name == "Second").Value);
+        Assert.Equal(2, provider.CaptureNode(reloadedChild).PreservedProperties.Count);
+        definition.Properties.Single(item => item.Name == "Second").Value = 100;
+        Assert.Throws<InvalidOperationException>(plan.Undo);
+        definition.Properties.Single(item => item.Name == "Second").Value = 5;
+        plan.Undo();
+        Assert.Equal(5, definition.Properties.Single(item => item.Name == "First").Value);
+        Assert.Contains(definition.Properties, item => item.Name == "Removed");
+        plan.Apply();
+        Assert.Equal(7, instance.Properties.Single(item => item.Name == "Second").Value);
+    }
+
+    [Fact]
+    public async Task ComponentRebase_PreservesValuesAndChildrenAcrossCopiesAndUndo()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        project.IsClosing = true;
+        var oldBase = new Component { Namespace = "Engine", ClassName = "Old", Template = new LoadableTestTemplate() };
+        oldBase.Properties.AddRange(new[]
+        {
+            new Property { Name = "Speed", Type = typeof(int), Value = 1, DeclaringTypeName = oldBase.FullName },
+            new Property { Name = "Former", Type = typeof(int), Value = 2, DeclaringTypeName = oldBase.FullName }
+        });
+        var newBase = new Component { Namespace = "Engine", ClassName = "New", Template = new LoadableTestTemplate() };
+        newBase.Properties.AddRange(new[]
+        {
+            new Property { Name = "Speed", Type = typeof(int), Value = 3, DeclaringTypeName = newBase.FullName },
+            new Property { Name = "Added", Type = typeof(string), Value = "new", DeclaringTypeName = newBase.FullName }
+        });
+        Component CreateActor(int speed, int former)
+        {
+            var actor = new Component
+            {
+                Namespace = "Game", ClassName = "Actor", BaseInheritedComponent = oldBase,
+                Template = new LoadableTestTemplate()
+            };
+            actor.Properties.AddRange(new[]
+            {
+                new Property(oldBase.Properties[0]) { Value = speed },
+                new Property(oldBase.Properties[1]) { Value = former }
+            });
+            actor.OveriddenProperties.AddRange(oldBase.Properties.Select(property => new Property(property)));
+            return actor;
+        }
+        var definition = CreateActor(8, 42);
+        var instance = CreateActor(9, 99);
+        var owner = new Component { Namespace = "Game", ClassName = "Owner", Template = new LoadableTestTemplate() };
+        owner.Children.Add(instance);
+        var derived = new Component
+        {
+            Namespace = "Game", ClassName = "Derived", BaseInheritedComponent = definition,
+            Template = new LoadableTestTemplate(),
+            Properties = definition.Properties.Select(property => new Property(property)).ToList(),
+            OveriddenProperties = definition.OveriddenProperties.Select(property => new Property(property)).ToList()
+        };
+        var oldTemplate = definition.Template;
+        var plan = new ComponentRebasePlan(project, resources.Get<IProjectModel>(), resources.Get<IPropertyModel>(),
+            new[] { definition, owner, derived }, definition.FullName, newBase, Array.Empty<Type>());
+        Assert.Same(oldBase, definition.BaseInheritedComponent);
+        plan.Apply();
+        Assert.Same(newBase, definition.BaseInheritedComponent);
+        Assert.Same(newBase, instance.BaseInheritedComponent);
+        Assert.Same(definition, derived.BaseInheritedComponent);
+        Assert.Same(instance, Assert.Single(owner.Children));
+        Assert.Equal(8, definition.Properties.Single(property => property.Name == "Speed").Value);
+        Assert.Equal(9, instance.Properties.Single(property => property.Name == "Speed").Value);
+        Assert.Equal("new", definition.Properties.Single(property => property.Name == "Added").Value);
+        Assert.DoesNotContain(definition.Properties, property => property.Name == "Former");
+        Assert.Equal(newBase.FullName, definition.Template.Code.BaseClass);
+        var save = new ComponentSaveContext();
+        save.Init(resources, project);
+        save.Components.AddRange(new[] { definition, owner });
+        await save.SaveAction(project);
+        var savedDefinition = JsonNode.Parse(File.ReadAllText(provider.GetPath(project, definition)));
+        var savedOwner = JsonNode.Parse(File.ReadAllText(provider.GetPath(project, owner)));
+        Assert.Equal(42, savedDefinition["Properties"].AsArray()
+            .Single(item => item["Name"].GetValue<string>() == "Former")["Value"].GetValue<int>());
+        Assert.Equal(99, savedOwner["Children"][0]["Properties"].AsArray()
+            .Single(item => item["Name"].GetValue<string>() == "Former")["Value"].GetValue<int>());
+        plan.Undo();
+        Assert.Same(oldBase, definition.BaseInheritedComponent);
+        Assert.Same(oldTemplate, definition.Template);
+        Assert.Equal(42, definition.Properties.Single(property => property.Name == "Former").Value);
+        plan.Apply();
+        Assert.Equal(8, definition.Properties.Single(property => property.Name == "Speed").Value);
+        Assert.Contains(plan.PreservedOverrides, text => text.Contains("Former"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ComponentRebase_RecognizesPropertiesDeclaredAboveTheComponentRoot(bool changeBase)
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        var oldBase = new Component { Namespace = "Engine", ClassName = "Entity", Template = new LoadableTestTemplate() };
+        var inherited = new Property { Name = "Name", Type = typeof(string), Value = "default", DeclaringTypeName = "Engine.Object" };
+        oldBase.Properties.Add(inherited);
+        var newBase = changeBase
+            ? new Component { Namespace = "Engine", ClassName = "Drawable", Template = new LoadableTestTemplate() }
+            : oldBase;
+        if (changeBase)
+            newBase.Properties.Add(new Property(inherited) { Value = "new default" });
+        var component = new Component
+        {
+            Namespace = "Game", ClassName = "Actor", BaseInheritedComponent = oldBase, Template = new LoadableTestTemplate()
+        };
+        component.Properties.Add(new Property(inherited) { Value = "player" });
+        component.OveriddenProperties.Add(new Property(inherited));
+        var derived = new Component
+        {
+            Namespace = "Game", ClassName = "Enemy", BaseInheritedComponent = component, Template = new LoadableTestTemplate(),
+            Properties = new List<Property> { new(inherited) { Value = "enemy" } },
+            OveriddenProperties = new List<Property> { new(inherited) }
+        };
+        var plan = new ComponentRebasePlan(project, resources.Get<IProjectModel>(), resources.Get<IPropertyModel>(),
+            new[] { component, derived }, component.FullName, newBase, Array.Empty<Type>());
+
+        plan.Apply();
+        Assert.Equal("player", Assert.Single(component.Properties).Value);
+        Assert.Equal("enemy", Assert.Single(derived.Properties).Value);
+        Assert.Empty(plan.PreservedOverrides);
+        plan.Undo();
+        Assert.Equal("player", Assert.Single(component.Properties).Value);
+        plan.Apply();
+        Assert.Equal("enemy", Assert.Single(derived.Properties).Value);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ComponentRebase_RejectsPropertyActuallyDeclaredOnComponent(bool customProperty)
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        var oldBase = new Component { Namespace = "Engine", ClassName = "Entity", Template = new LoadableTestTemplate() };
+        oldBase.Properties.Add(new Property { Name = "Name", Type = typeof(string), DeclaringTypeName = "Engine.Object" });
+        var component = new Component
+        {
+            Namespace = "Game", ClassName = "Actor", BaseInheritedComponent = oldBase, Template = new LoadableTestTemplate()
+        };
+        component.Properties.Add(new Property
+        {
+            Name = "Name", Type = typeof(string),
+            DeclaringTypeName = customProperty ? "Engine.Object" : component.FullName
+        });
+        if (customProperty)
+            component.CustomProperties.Add(new CustomProperty { Name = "Name", TypeName = typeof(string).FullName });
+
+        var error = Assert.Throws<InvalidOperationException>(() => new ComponentRebasePlan(project,
+            resources.Get<IProjectModel>(), resources.Get<IPropertyModel>(), new[] { component }, component.FullName,
+            oldBase, Array.Empty<Type>()));
+        Assert.Contains("conflicts", error.Message);
+    }
+
+    [Fact]
+    public async Task ComponentRebase_PreservesIncompatibleOverridesAndRejectsStaleState()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        project.IsClosing = true;
+        var oldBase = new Component { Namespace = "Engine", ClassName = "Old", Template = new LoadableTestTemplate() };
+        oldBase.Properties.Add(new Property { Name = "Value", Type = typeof(int), Value = 1, DeclaringTypeName = oldBase.FullName });
+        var next = new Component { Namespace = "Engine", ClassName = "Next", Template = new LoadableTestTemplate() };
+        next.Properties.Add(new Property { Name = "Value", Type = typeof(string), Value = "new", DeclaringTypeName = next.FullName });
+        var component = new Component
+        {
+            Namespace = "Game", ClassName = "Actor", BaseInheritedComponent = oldBase,
+            Template = new LoadableTestTemplate()
+        };
+        component.Properties.Add(new Property(oldBase.Properties[0]) { Value = 7 });
+        component.OveriddenProperties.Add(new Property(oldBase.Properties[0]));
+        var persisted = (HashSet<string>)typeof(Component).GetProperty("PersistedPropertyOverrides",
+            BindingFlags.Instance | BindingFlags.NonPublic).GetValue(component);
+        persisted.Add("Value");
+        var model = resources.Get<IProjectModel>();
+        var properties = resources.Get<IPropertyModel>();
+        var plan = new ComponentRebasePlan(project, model, properties, new[] { component }, component.FullName, next, Array.Empty<Type>());
+        Assert.Equal(7, component.Properties[0].Value);
+        component.Properties[0].Value = 8;
+        Assert.Throws<InvalidOperationException>(() => plan.Apply());
+        Assert.Same(oldBase, component.BaseInheritedComponent);
+        component.Properties[0].Value = 7;
+        plan.Apply();
+        Assert.Equal("new", component.Properties[0].Value);
+        Assert.Contains(plan.PreservedOverrides, value => value.Contains("Value"));
+        var save = new ComponentSaveContext();
+        save.Init(resources, project);
+        save.Components.Add(component);
+        await save.SaveAction(project);
+        var file = JsonNode.Parse(File.ReadAllText(provider.GetPath(project, component)));
+        Assert.Equal(7, file["PreservedProperties"][0]["Value"].GetValue<int>());
+        Assert.Equal(typeof(int).FullName, file["PreservedProperties"][0]["TypeName"].GetValue<string>());
+        Assert.Empty(file["Properties"].AsArray());
+        provider.AddBaseTypeComponent(next);
+        var oldAssembly = true;
+        resources.Get<IHookModel>().AddHook<ExtractPropertiesHook>(hook =>
+        {
+            if (hook.Component.FullName == component.FullName)
+                hook.Properties.Add(oldAssembly
+                    ? new Property { Name = "Value", Type = typeof(int), Value = 1, DeclaringTypeName = oldBase.FullName }
+                    : new Property { Name = "Value", Type = typeof(string), Value = "new", DeclaringTypeName = next.FullName });
+        });
+        Assert.Equal(1, provider.Load(project, component.FullName).Properties.Single().Value);
+        oldAssembly = false;
+        var loaded = provider.Load(project, component.FullName);
+        Assert.Equal("new", loaded.Properties.Single().Value);
+        Assert.Equal(7, Assert.IsType<JsonElement>(Assert.Single(provider.CaptureNode(loaded).PreservedProperties).Value).GetInt32());
+        var clone = provider.CreateInstance(project, loaded);
+        Assert.Equal(7, Assert.IsType<JsonElement>(Assert.Single(provider.CaptureNode(clone).PreservedProperties).Value).GetInt32());
+        plan.Undo();
+        Assert.Equal(7, component.Properties[0].Value);
+    }
+
+    [Fact]
+    public async Task ComponentRebase_PreservesIncompatibleValuesOnChildInstances()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        project.IsClosing = true;
+        var oldBase = new Component { Namespace = "Engine", ClassName = "Old", Template = new LoadableTestTemplate() };
+        oldBase.Properties.Add(new Property { Name = "Value", Type = typeof(int), Value = 1, DeclaringTypeName = oldBase.FullName });
+        var next = new Component { Namespace = "Engine", ClassName = "Next", Template = new LoadableTestTemplate() };
+        next.Properties.Add(new Property { Name = "Value", Type = typeof(string), Value = "default", DeclaringTypeName = next.FullName });
+        Component Actor(int value)
+        {
+            var actor = new Component { Namespace = "Game", ClassName = "Actor", BaseInheritedComponent = oldBase, Template = new LoadableTestTemplate() };
+            actor.Properties.Add(new Property(oldBase.Properties[0]) { Value = value });
+            actor.OveriddenProperties.Add(new Property(oldBase.Properties[0]));
+            return actor;
+        }
+        var definition = Actor(2);
+        var instance = Actor(55);
+        var owner = new Component { Namespace = "Game", ClassName = "Owner", Template = new LoadableTestTemplate() };
+        owner.Children.Add(instance);
+        var plan = new ComponentRebasePlan(project, resources.Get<IProjectModel>(), resources.Get<IPropertyModel>(),
+            new[] { definition, owner }, definition.FullName, next, Array.Empty<Type>());
+        plan.Apply();
+        var save = new ComponentSaveContext();
+        save.Init(resources, project);
+        save.Components.AddRange(new[] { definition, owner });
+        await save.SaveAction(project);
+        var json = JsonNode.Parse(File.ReadAllText(provider.GetPath(project, owner)));
+        Assert.Equal(55, json["Children"][0]["PreservedProperties"][0]["Value"].GetValue<int>());
+
+        provider.AddBaseTypeComponent(next);
+        resources.Get<IHookModel>().AddHook<ExtractPropertiesHook>(hook =>
+        {
+            if (hook.Component.FullName == definition.FullName)
+                hook.Properties.Add(new Property { Name = "Value", Type = typeof(string), Value = "default", DeclaringTypeName = next.FullName });
+        });
+        var loaded = provider.Load(project, owner.FullName);
+        var copied = provider.CaptureNode(Assert.Single(loaded.Children));
+        Assert.Equal(55, Assert.IsType<JsonElement>(Assert.Single(copied.PreservedProperties).Value).GetInt32());
+        var restored = provider.RestoreNode(project, copied);
+        Assert.Equal(55, Assert.IsType<JsonElement>(Assert.Single(provider.CaptureNode(restored).PreservedProperties).Value).GetInt32());
+    }
+
+    [Fact]
+    public void ComponentRebase_RestoresAllStateWhenTemplateInitializationFails()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        var oldBase = new Component { Namespace = "Engine", ClassName = "Old", Template = new LoadableTestTemplate() };
+        var failingBase = new Component { Namespace = "Engine", ClassName = "Broken", Template = new FailingRebaseTemplate() };
+        var component = new Component { Namespace = "Game", ClassName = "Actor", BaseInheritedComponent = oldBase, Template = new LoadableTestTemplate() };
+        var template = component.Template;
+        var properties = component.Properties;
+        var plan = new ComponentRebasePlan(project, resources.Get<IProjectModel>(), resources.Get<IPropertyModel>(),
+            new[] { component }, component.FullName, failingBase, Array.Empty<Type>());
+        Assert.Throws<InvalidOperationException>(() => plan.Apply());
+        Assert.Same(oldBase, component.BaseInheritedComponent);
+        Assert.Same(template, component.Template);
+        Assert.Same(properties, component.Properties);
+    }
+
+    [Fact]
+    public void ComponentRebase_RejectsCyclesAndChangesToBaseOrAppliedValues()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        var oldBase = new Component { Namespace = "Engine", ClassName = "Old", Template = new LoadableTestTemplate() };
+        var next = new Component { Namespace = "Engine", ClassName = "Next", Template = new LoadableTestTemplate() };
+        next.Properties.Add(new Property { Name = "Value", Type = typeof(int), Value = 1, DeclaringTypeName = next.FullName });
+        var component = new Component { Namespace = "Game", ClassName = "Actor", BaseInheritedComponent = oldBase, Template = new LoadableTestTemplate() };
+        var derived = new Component { Namespace = "Game", ClassName = "Derived", BaseInheritedComponent = component, Template = new LoadableTestTemplate() };
+        var model = resources.Get<IProjectModel>();
+        var properties = resources.Get<IPropertyModel>();
+        Assert.Throws<InvalidOperationException>(() =>
+            new ComponentRebasePlan(project, model, properties, new[] { component, derived }, component.FullName, derived, Array.Empty<Type>()));
+        var plan = new ComponentRebasePlan(project, model, properties, new[] { component }, component.FullName, next, Array.Empty<Type>());
+        next.Properties[0].Value = 2;
+        Assert.Throws<InvalidOperationException>(() => plan.Apply());
+        next.Properties[0].Value = 1;
+        plan.Apply();
+        component.Properties.Single().Value = 9;
+        Assert.Throws<InvalidOperationException>(() => plan.Undo());
+        Assert.Same(next, component.BaseInheritedComponent);
+    }
+
+    [Fact]
     public async Task RenamedPersistedOverride_IsSavedUnderTheNewName()
     {
         var resources = new TestResourceModel();
@@ -436,6 +896,53 @@ public class FormatVersionTests
         var saved = JsonNode.Parse(File.ReadAllText(path));
         Assert.Equal("Velocity", saved["Properties"][0]["Name"].GetValue<string>());
         Assert.Equal(5, saved["Properties"][0]["Value"].GetValue<int>());
+    }
+
+    [Fact]
+    public async Task CreatedComponent_InitializesAndSavesDraftPropertiesWithInheritedProperties()
+    {
+        var resources = new TestResourceModel();
+        TypeDInit.Init(resources);
+        resources.Get<ISaveModel>().Init(resources);
+        resources.Get<IProjectModel>().Init(resources);
+        var provider = resources.Get<IComponentProvider>();
+        provider.Init(resources);
+        using var directory = new TestDirectory();
+        var project = CreateProject(directory.Path);
+        project.IsClosing = true;
+        var parent = new Component { Namespace = "Engine", ClassName = "Base", Template = new LoadableTestTemplate() };
+        parent.CustomProperties.Add(new CustomProperty { Name = "Inherited", TypeName = typeof(int).FullName, DefaultValue = 3 });
+        provider.AddBaseTypeComponent(parent);
+        var sawDraftDuringTreeBuild = false;
+        resources.Get<IHookModel>().AddHook<ComponentTreeBuiltHook>(hook =>
+            sawDraftDuringTreeBuild = provider.ListAll(project).Single().CustomProperties.Count == 2);
+
+        var template = provider.Create(project, "Player", "Game", parent, null, null, new List<CustomProperty>
+        {
+            new() { Name = "Health", TypeName = typeof(int).FullName, DefaultValue = 42 },
+            new() { Name = "Secret", TypeName = typeof(int).FullName, DefaultValue = 7, Access = CustomPropertyAccess.Private }
+        });
+        var component = template.Component;
+        Assert.True(sawDraftDuringTreeBuild);
+        Assert.Equal(42, component.Properties.Single(property => property.Name == "Health").Value);
+        Assert.Equal(3, component.Properties.Single(property => property.Name == "Inherited").Value);
+        Assert.DoesNotContain(component.Properties, property => property.Name == "Secret");
+        Assert.Contains(component.OveriddenProperties, property => property.Name == "Health");
+        template.Code.Generate();
+        Assert.Contains("public int Health", ((LoadableTestCode)template.Code).GeneratedOutput);
+        Assert.Contains("private int Secret", ((LoadableTestCode)template.Code).GeneratedOutput);
+
+        var save = resources.Get<ISaveModel>().GetSaveContext<ComponentSaveContext>(project);
+        await save.SaveAction(project);
+        var saved = JsonNode.Parse(File.ReadAllText(provider.GetPath(project, component)));
+        Assert.Equal(2, saved["CustomProperties"].AsArray().Count);
+        Assert.Equal(42, saved["CustomProperties"][0]["DefaultValue"].GetValue<int>());
+        save.Components.Remove(component);
+        var reloaded = provider.Load(project, component.FullName);
+        Assert.Equal(42, Assert.IsType<int>(reloaded.CustomProperties[0].DefaultValue));
+        Assert.Equal(42, reloaded.Properties.Single(property => property.Name == "Health").Value);
+        Assert.Equal(3, reloaded.Properties.Single(property => property.Name == "Inherited").Value);
+        Assert.Equal(CustomPropertyAccess.Private, reloaded.CustomProperties[1].Access);
     }
 
     [Fact]
@@ -501,7 +1008,7 @@ public class FormatVersionTests
         Assert.True((bool)upgrade.Invoke(provider, new object[] { project, project.ProjectFilePath }));
 
         Assert.Equal("Game.NewScene", project.StartScene);
-        Assert.Equal(1, JsonNode.Parse(File.ReadAllText(componentFile))["FormatVersions"]["TypeD"].GetValue<int>());
+        Assert.Equal(2, JsonNode.Parse(File.ReadAllText(componentFile))["FormatVersions"]["TypeD"].GetValue<int>());
         Assert.Single(Directory.GetFiles(directory.Path, "*.bak"));
         Assert.Single(Directory.GetFiles(components, "*.bak"));
         Assert.False((bool)upgrade.Invoke(provider, new object[] { project, project.ProjectFilePath }));
@@ -545,7 +1052,7 @@ public class FormatVersionTests
 
         code.Generate();
 
-        Assert.Contains("""// TypeO format versions: {"TypeD":1,"Example":2}""", code.GeneratedOutput);
+        Assert.Contains("""// TypeO format versions: {"TypeD":2,"Example":2}""", code.GeneratedOutput);
         Assert.DoesNotContain("TypeO format versions:", code.UserOutput);
     }
 
@@ -586,10 +1093,17 @@ public class FormatVersionTests
         public override Type TypeOBaseType => typeof(object);
         protected override void InitClass() { }
         protected override void InitTypeDClass() { }
+        public string GeneratedOutput => TypeDFile.Output.ToString();
     }
 
     public sealed class LoadableTestTemplate : ComponentTemplate<LoadableTestCode>
     {
+        public override void ChildrenFilter(FilterHelper filter) { }
+    }
+
+    public sealed class FailingRebaseTemplate : ComponentTemplate<LoadableTestCode>
+    {
+        public override void Init() => throw new InvalidOperationException("Template failed.");
         public override void ChildrenFilter(FilterHelper filter) { }
     }
 

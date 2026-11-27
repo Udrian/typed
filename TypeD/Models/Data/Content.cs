@@ -52,7 +52,7 @@ namespace TypeD.Models.Data
 
         /// <summary>Creates the empty vertical panel that hosts the tooltip rows.</summary>
         /// <returns>The new panel.</returns>
-        protected static StackPanel CreateToolTipPanel()
+        protected internal static StackPanel CreateToolTipPanel()
         {
             return new StackPanel { Spacing = 6, MaxWidth = 420 };
         }
@@ -60,7 +60,7 @@ namespace TypeD.Models.Data
         /// <summary>Adds a two-column grid of name and value rows to the tooltip panel.</summary>
         /// <param name="panel">The panel to add the grid to.</param>
         /// <param name="properties">The name and value pairs to show.</param>
-        protected static void AddToolTipRows(StackPanel panel, IEnumerable<KeyValuePair<string, string>> properties)
+        protected internal static void AddToolTipRows(StackPanel panel, IEnumerable<KeyValuePair<string, string>> properties)
         {
             var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
 

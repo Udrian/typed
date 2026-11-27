@@ -40,6 +40,8 @@ namespace TypeD.Helpers
         /// Gets or sets the items to include in the operation, specified as a delimited string set in <see cref="FilterSeperator"/>.
         /// </summary>
         public string Include { get; set; }
+        /// <summary>Gets or sets whether filter criteria must match the entire text with ordinal case sensitivity.</summary>
+        public bool ExactMatch { get; set; }
         /// <summary>
         /// Gets or sets the character used to separate multiple filters in a filter string. Defaults to a semicolon (";")
         /// </summary>
@@ -81,7 +83,9 @@ namespace TypeD.Helpers
             var include = Include.Split(FilterSeperator).Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s));
 
             var filterResult = false;
-            if (filters.Any(f => f != "") && !filters.Contains(text, new FilterComparer())) filterResult = true;
+            if (filters.Any() && !(ExactMatch
+                ? filters.Contains(text, System.StringComparer.Ordinal)
+                : filters.Contains(text, new FilterComparer()))) filterResult = true;
             if (exclude.Contains(text)) filterResult = true;
             if (include.Contains(text)) filterResult = false;
 
